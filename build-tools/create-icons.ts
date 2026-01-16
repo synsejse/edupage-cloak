@@ -6,7 +6,7 @@
 
 import imagemagick from 'imagemagick';
 
-const root = `../public/assets/images/`;
+const root = `./public/assets/images/`;
 const filename = 'example.png';
 
 /**

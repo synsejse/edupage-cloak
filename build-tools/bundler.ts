@@ -10,6 +10,6 @@ const entrypoints = await getFilepaths();
 
 await Bun.build({
   entrypoints: entrypoints,
-  outdir: '../dist',
+  outdir: './dist',
   minify: true,
 });

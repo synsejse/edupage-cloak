@@ -65,4 +65,4 @@ async function removeInlineScriptAndStyle(directory: string) {
   }
 }
 
-await removeInlineScriptAndStyle('../dist');
+await removeInlineScriptAndStyle('./dist');

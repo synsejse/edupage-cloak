@@ -5,7 +5,7 @@
 import { readdir } from 'fs/promises';
 import { extname, join } from 'path';
 
-const sourceDir = '../src/scripts';
+const sourceDir = './src/scripts';
 
 /**
  * Recursively get all .ts and .js filepaths from the directory.
