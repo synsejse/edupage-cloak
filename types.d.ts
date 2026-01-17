@@ -1,3 +1,21 @@
-// https://github.com/oven-sh/bun/issues/358#issuecomment-1715648224
+interface Window {
+  jQuery?: any;
+  $: any;
+}
 
-/// <reference lib="dom" />
+interface JQueryStatic {
+  Deferred(): any;
+}
+
+interface JQuery {
+  etestPlayer: {
+    (options?: any): JQuery;
+    defaults: any;
+  };
+}
+
+interface Document {
+  webkitVisibilityState: string;
+  mozFullScreenElement: any;
+  webkitFullscreenElement: any;
+}

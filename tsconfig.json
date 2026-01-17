@@ -1,32 +1,38 @@
 {
   "compilerOptions": {
-    "types": [
-      "bun-types", // add Bun type definitions
-      "./types.d.ts", // add your own type definitions
-      "@types/chrome"
-    ],
+    "types": ["bun-types", "@types/chrome", "@types/jquery"],
 
     // enable latest features
-    "lib": ["esnext"],
+    "lib": ["esnext", "dom"],
     "module": "esnext",
     "target": "esnext",
 
-    // if TS 5.x+
+    // Bun bundler settings
     "moduleResolution": "bundler",
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "moduleDetection": "force",
-    // if TS 4.x or earlier
-    // "moduleResolution": "nodenext",
 
-    "jsx": "react-jsx", // support JSX
-    "allowJs": true, // allow importing `.js` from `.ts`
-    "esModuleInterop": true, // allow default imports for CommonJS modules
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "esModuleInterop": true,
 
     // best practices
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // Disable some strict checks for injected code
+    "noImplicitThis": false,
+    "strictBindCallApply": false,
+
+    // Paths for better imports
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+    },
   },
-  "extends": "astro/tsconfigs/strict"
+  "include": ["src/**/*", "types.d.ts"],
+  "exclude": ["node_modules", "dist", "build"],
+  "extends": "astro/tsconfigs/strict",
 }

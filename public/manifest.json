@@ -2,11 +2,22 @@
   "manifest_version": 3,
   "name": "Catonaut",
   "version": "0.1.0",
+  "description": "EduPage Rooftop functionality",
+  "permissions": ["storage"],
+  "host_permissions": ["*://*/*"],
   "content_scripts": [
     {
-      "matches": ["http://*/*"],
+      "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "css": ["content.css"]
+      "css": ["content.css"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["<all_urls>"]
     }
   ],
   "background": {
