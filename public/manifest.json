@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Catonaut",
   "version": "0.1.0",
-  "description": "EduPage Rooftop functionality",
+  "description": "No EduPage, leave me alone, stop tracking me",
   "permissions": ["storage"],
   "host_permissions": ["*://*/*"],
   "content_scripts": [

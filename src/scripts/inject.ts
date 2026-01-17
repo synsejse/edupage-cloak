@@ -1,11 +1,10 @@
+// Inject Script
+// Block EduPage tracking functionality with multiple layers of protection
+
+import { createLogger } from './logger';
+
 (function () {
-  const TAG = '[EduPage Rooftop]';
-  const COLORS = {
-    blocked:
-      'background: #3d0000; color: #ff4d4d; font-weight: bold; border-radius: 3px; padding: 0 3px;',
-    patch: 'color: #2ed573; font-weight: bold;',
-    info: 'color: #70a1ff;',
-  };
+  const logger = createLogger('inject');
 
   // --- 1. Refined Registry ---
   const BLOCKED = {
@@ -15,14 +14,6 @@
     namespaces: ['etestplayer', 'etestplayeral'],
     // These functions are for the logger
     strings: ['addAnswerLogEvent', 'zipLog'],
-  };
-
-  const log = (
-    msg: string,
-    type: keyof typeof COLORS = 'info',
-    ...args: any[]
-  ) => {
-    console.log(`%c${TAG}%c ${msg}`, COLORS[type], 'color: inherit;', ...args);
   };
 
   // Improved check: Only block if it looks like a tracking log
@@ -66,7 +57,7 @@
                 key.toLowerCase().includes(k.toLowerCase())
               )
             ) {
-              log(`Blocked ${type} ${prop.toUpperCase()}: ${key}`, 'blocked');
+              logger.info(`Blocked ${type} ${prop.toUpperCase()}: ${key}`);
               return prop === 'getItem' ? null : undefined;
             }
             return prop === 'setItem'
@@ -92,7 +83,7 @@
         typeof events === 'string' &&
         BLOCKED.namespaces.some((ns) => events.includes(`.${ns}`))
       ) {
-        log(`Prevented tracking event: ${events}`, 'blocked');
+        logger.info(`Prevented tracking event: ${events}`);
         return this;
       }
       return _on.apply(this, [events, ...args]);
@@ -113,7 +104,7 @@
         cfg.method?.toUpperCase() === 'POST';
 
       if (isPost && (isTrackingPayload(cfg.data) || scrub(cfg.data))) {
-        log(`Scrubbed tracking data from POST: ${url}`, 'blocked');
+        logger.info(`Scrubbed tracking data from POST: ${url}`);
         // If data is now empty or only had logs, return success dummy
         if (!cfg.data || Object.keys(cfg.data).length === 0) {
           return $.Deferred().resolve().promise();
@@ -127,9 +118,8 @@
     const _player = $.fn.etestPlayer;
     if (_player) {
       $.fn.etestPlayer = function (opts: any) {
-        log(
-          'etestPlayer detected: Initializing with useAnswerLog=false',
-          'patch'
+        logger.info(
+          'etestPlayer detected: Initializing with useAnswerLog=false'
         );
         return _player.call(this, { ...opts, useAnswerLog: false });
       };
@@ -156,7 +146,7 @@
       patchJQuery(window.jQuery);
       if (window.jQuery.fn.etestPlayer) {
         clearInterval(jqInterval);
-        log('All systems nominal. Tracking suppressed.', 'patch');
+        logger.info('All systems nominal. Tracking suppressed.');
       }
     }
   }, 100);
