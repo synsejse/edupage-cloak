@@ -11,16 +11,13 @@ import { UAParser } from 'ua-parser-js';
 
   /**
    * Identifies if the current environment is a mobile/tablet
-   * based on screen width or User Agent.
+   * based on User Agent.
    */
   const isMobileEnvironment = (): boolean => {
     const parser = new UAParser(navigator.userAgent);
     const device = parser.getDevice();
 
-    const isMobileDevice = device.type === 'mobile' || device.type === 'tablet';
-    const isSmallScreen = window.innerWidth <= MOBILE_BREAKPOINT;
-
-    return isSmallScreen || isMobileDevice;
+    return device.type === 'mobile' || device.type === 'tablet';
   };
 
   /**

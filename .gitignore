@@ -143,7 +143,6 @@ out
 
 # debugging stuff
 edupage_source/
-EduPage_*
 
 # build
-extension.zip
+edupage-cloak*.zip

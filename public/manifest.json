@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Catonaut",
+  "name": "EduPage Cloak",
   "version": "0.1.0",
-  "description": "No EduPage, leave me alone, stop tracking me",
+  "description": "EduPage Cloak — block EduPage and reduce tracking",
   "permissions": ["storage"],
   "host_permissions": ["*://*/*"],
   "content_scripts": [

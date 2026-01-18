@@ -2,12 +2,12 @@
  * for easy distribution and upload to browser extension stores.
  */
 
-import { stat } from 'fs/promises';
+import { stat, readFile } from 'fs/promises';
 import { createWriteStream } from 'fs';
 import archiver from 'archiver';
+import path from 'path';
 
 const distDir = './dist';
-const outputZip = './extension.zip';
 
 /**
  * Pack the dist directory into a zip file using archiver.
@@ -16,6 +16,14 @@ async function packExtension() {
   console.log('Packing extension...');
 
   try {
+    // 1. Read name and version from package.json
+    const packageJsonContent = await readFile('./package.json', 'utf-8');
+    const { name, version } = JSON.parse(packageJsonContent);
+
+    // 2. Define the output filename dynamically
+    const outputZipName = `${name}-v${version}.zip`;
+    const outputZipPath = path.join('./', outputZipName);
+
     // Check if dist directory exists
     const distStat = await stat(distDir);
     if (!distStat.isDirectory()) {
@@ -23,7 +31,7 @@ async function packExtension() {
     }
 
     // Create a file to stream archive data to
-    const output = createWriteStream(outputZip);
+    const output = createWriteStream(outputZipPath);
     const archive = archiver('zip', {
       zlib: { level: 9 }, // Maximum compression
     });
@@ -55,8 +63,8 @@ async function packExtension() {
     // Wait for the stream to finish
     await finishPromise;
 
-    const zipStat = await stat(outputZip);
-    console.log(`✓ Extension packed successfully: ${outputZip}`);
+    const zipStat = await stat(outputZipPath);
+    console.log(`✓ Extension packed successfully: ${outputZipName}`);
     console.log(`  Size: ${(zipStat.size / 1024).toFixed(2)} KB`);
     console.log(`  Total bytes: ${archive.pointer()}`);
   } catch (error) {
