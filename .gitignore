@@ -140,3 +140,10 @@ out
 
 # macOS-specific files
 .DS_Store
+
+# debugging stuff
+edupage_source/
+EduPage_*
+
+# build
+extension.zip
