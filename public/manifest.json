@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "description": "EduPage Cloak — block EduPage and reduce tracking",
   "permissions": ["storage"],
-  "host_permissions": ["*://*/*"],
+  "host_permissions": ["*://*.edupage.org/*"],
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["*://*.edupage.org/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_start",
@@ -17,7 +17,7 @@
   "web_accessible_resources": [
     {
       "resources": ["inject.js"],
-      "matches": ["<all_urls>"]
+      "matches": ["*://*.edupage.org/*"]
     }
   ],
   "action": {
