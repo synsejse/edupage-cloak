@@ -1,28 +1,54 @@
 // Inject Script
 // Block EduPage tracking functionality
-
 import { createLogger } from './logger';
 
 (function () {
   const logger = createLogger('inject');
 
-  // --- 1. Tracking Event Namespaces ---
-  const BLOCKED_NAMESPACES = [
-    'etestplayer' /* etestPlayer.js#530 */,
-    'etestplayeral' /* etestPlayer.js#2409 */,
-    'etestaplayer' /* etestPlayer.js#521 */,
+  // --- 1. Blocked Tracking Events ---
+  const BLOCKED_EVENTS = [
+    // Fullscreen tracking
+    'webkitfullscreenchange.etestaplayer',
+    'mozfullscreenchange.etestaplayer',
+    'fullscreenchange.etestaplayer',
+
+    // Navigation tracking
+    'beforeunload.etestplayer',
+    'remove.etestplayer',
+
+    // Scroll tracking
+    'scroll.etestplayer',
+
+    // Visibility/focus tracking
+    'visibilitychange.etestplayeral',
+    'blur.etestplayeral',
+    'focus.etestplayeral',
+    'enterBackgroundHandler.etestplayeral',
+    'enterForegroundHandler.etestplayeral',
+
+    // Clipboard tracking
+    'copy.etestplayeral',
+    'paste.etestplayeral',
+    'cut.etestplayeral',
+
+    // Keyboard tracking
+    'keydown.etestplayeral',
   ];
 
   // --- 2. jQuery Event Blocker ---
   const patchJQuery = ($: any) => {
     const _on = $.fn.on;
     $.fn.on = function (events: string, ...args: any[]) {
-      if (
-        typeof events === 'string' &&
-        BLOCKED_NAMESPACES.some((ns) => events.includes(`.${ns}`))
-      ) {
-        logger.info(`Blocked tracking event: ${events}`);
-        return this; // Return jQuery object without attaching listener
+      if (typeof events === 'string') {
+        const eventList = events.split(/\s+/);
+        const hasBlockedEvent = eventList.some((event) =>
+          BLOCKED_EVENTS.includes(event)
+        );
+
+        if (hasBlockedEvent) {
+          logger.info(`Blocked tracking event: ${events}`);
+          return this;
+        }
       }
       return _on.apply(this, [events, ...args]);
     };

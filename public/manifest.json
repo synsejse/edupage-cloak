@@ -20,9 +20,6 @@
       "matches": ["<all_urls>"]
     }
   ],
-  "background": {
-    "scripts": ["background.js"]
-  },
   "action": {
     "default_popup": "index.html"
   },
