@@ -24,12 +24,6 @@ import { createLogger } from './logger';
     (document.head || document.documentElement).appendChild(script);
   };
 
-  // 1. Inject mobile redirect first
-  // Logic inside this script handles both scaling to mobile and returning to desktop
-  injectScript('mobile-redirect.js', 'Mobile redirect script');
-
-  // 2. Inject the tracking blocker
-  // Handles jQuery event suppression and focus/visibility spoofing
   injectScript('inject.js', 'Tracking blocker script');
 
   logger.info('Injection initiated');
