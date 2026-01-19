@@ -31,10 +31,29 @@ import { createLogger } from './logger';
   // --- 3. Visibility & Focus Spoofing ---
   const stayActive = () => {
     Object.defineProperties(document, {
-      hidden: { get: () => false, configurable: true },
-      visibilityState: { get: () => 'visible', configurable: true },
+      hidden: {
+        get: () => {
+          logger.info('document.hidden accessed - returning false (visible)');
+          return false;
+        },
+        configurable: true,
+      },
+      visibilityState: {
+        get: () => {
+          logger.info(
+            'document.visibilityState accessed - returning "visible"'
+          );
+          return 'visible';
+        },
+        configurable: true,
+      },
     });
-    document.hasFocus = () => true;
+
+    const originalHasFocus = document.hasFocus;
+    document.hasFocus = () => {
+      logger.info('document.hasFocus() called - returning true');
+      return true;
+    };
   };
 
   // --- Execution ---
