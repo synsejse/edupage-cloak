@@ -7,7 +7,11 @@ import { createLogger } from './logger';
   const logger = createLogger('inject');
 
   // --- 1. Tracking Event Namespaces ---
-  const BLOCKED_NAMESPACES = ['etestplayer', 'etestplayeral'];
+  const BLOCKED_NAMESPACES = [
+    'etestplayer' /* etestPlayer.js#530 */,
+    'etestplayeral' /* etestPlayer.js#2409 */,
+    'etestaplayer' /* etestPlayer.js#521 */,
+  ];
 
   // --- 2. jQuery Event Blocker ---
   const patchJQuery = ($: any) => {
