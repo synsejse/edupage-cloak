@@ -10,14 +10,14 @@ import { UAParser } from 'ua-parser-js';
   const MOBILE_BREAKPOINT = 768;
 
   /**
-   * Identifies if the current environment is a mobile/tablet
-   * based on User Agent.
+   * Identifies if the current environment is a mobile
+   * based on User Agent. Does not include Apple devices.
    */
   const isMobileEnvironment = (): boolean => {
     const parser = new UAParser(navigator.userAgent);
     const device = parser.getDevice();
 
-    return device.type === 'mobile' || device.type === 'tablet';
+    return device.type === 'mobile' && device.vendor !== 'Apple';
   };
 
   /**
