@@ -1,9 +1,13 @@
 // Answer Revealer - Shows correct answers for EduPage tests
 
-import { createLogger } from './internal';
-import { toast } from './internal/toast';
+import { createLogger } from './internal/logger';
 
 const logger = createLogger('revealer');
+
+// Use global toast exposed by inject.js (may not be ready immediately)
+const showToast = (type: 'info' | 'success' | 'error', msg: string, duration = 2000) => {
+  window.toast?.[type]?.(msg, duration);
+};
 
 const STYLES = {
   highlight: '2px solid #2196F3',
@@ -189,8 +193,22 @@ function handleSvg(q: QuestionWidget): void {
 
 function handleElaboration(q: QuestionWidget): void {
   warnIfSecured(q);
-  logger.debug(`ElaborationETestWidget: ${JSON.stringify(q.props)}`);
-  q.element[0]?.before(createInfoBox(`🐛 Debug: ElaborationETestWidget (check console)`));
+
+  const { maxScore, enableUpload } = q.props as {
+    maxScore?: number;
+    enableUpload?: string;
+  };
+
+  const uploadEnabled = enableUpload === 'enabled';
+  const info = [
+    '✍️ Essay/Elaboration question',
+    `Max score: ${maxScore ?? 'N/A'}`,
+    uploadEnabled ? '📎 File upload enabled' : null,
+    '(No correct answer - manually graded)',
+  ].filter(Boolean).join('<br>');
+
+  q.element[0]?.before(createInfoBox(info));
+  logger.debug(`ElaborationETestWidget: maxScore=${maxScore}, upload=${uploadEnabled}`);
 }
 
 const handlers: Record<string, (q: QuestionWidget) => void> = {
@@ -207,7 +225,7 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
 function showAnswers(): void {
   if (!window.materialObj) {
     logger.error('materialObj not found');
-    toast.error('Test not loaded yet', 3000);
+    showToast('error', 'Test not loaded yet', 3000);
     return;
   }
 
@@ -225,7 +243,7 @@ function showAnswers(): void {
 
   isShowing = true;
   logger.info('Answers shown');
-  toast.success('Answers revealed', 2000);
+  showToast('success', 'Answers revealed');
 }
 
 function hideAnswers(): void {
@@ -244,7 +262,7 @@ function hideAnswers(): void {
 
   isShowing = false;
   logger.info('Answers hidden');
-  toast.info('Answers hidden', 2000);
+  showToast('info', 'Answers hidden');
 }
 
 function toggleAnswers(): void {

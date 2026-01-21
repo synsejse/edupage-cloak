@@ -1,7 +1,6 @@
 // Inject Script
 // Block EduPage tracking functionality
-import { createLogger } from './internal';
-import { toast } from './internal/toast';
+import { createLogger, toast } from './internal';
 
 (function () {
   const logger = createLogger('inject');

@@ -52,6 +52,14 @@ interface Window {
   jQuery?: any;
   $: any;
   materialObj: MaterialObj;
+  toast: {
+    info: (msg: string, duration?: number) => void;
+    warn: (msg: string, duration?: number) => void;
+    error: (msg: string, duration?: number) => void;
+    success: (msg: string, duration?: number) => void;
+    debug: (msg: string, duration?: number) => void;
+    clear: () => void;
+  };
   __interceptorRules: InterceptorRule[];
   __answerRevealer: AnswerRevealerAPI;
   __originalXHR: typeof XMLHttpRequest;
