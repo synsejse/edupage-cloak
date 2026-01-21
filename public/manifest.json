@@ -16,7 +16,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["inject.js"],
+      "resources": ["inject.js", "answer-revealer.js"],
       "matches": ["*://*.edupage.org/*"]
     }
   ],

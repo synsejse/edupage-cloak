@@ -1,7 +1,7 @@
 // Inject Script
 // Block EduPage tracking functionality
-import { createLogger } from './logger';
-import { toast } from './toast';
+import { createLogger } from './internal';
+import { toast } from './internal/toast';
 
 (function () {
   const logger = createLogger('inject');
@@ -174,6 +174,22 @@ import { toast } from './toast';
     logger.info('JSON.stringify patched for answerLog');
     toast.debug('JSON interceptor active', 2000);
   };
+
+  // --- 3. Fetch/XHR Interceptor ---
+  // Register rules with the synchronously-injected interceptor from content.ts
+  // Expose materialObj globally to allow inspection/modification
+  window.__interceptorRules = window.__interceptorRules || [];
+  window.__interceptorRules.push({
+    pattern: /elearning\/pics\/js\/etest\/etestPlayer\.js/,
+    modifier: (content) => {
+      logger.info('Patching etestPlayer.js: Exposing materialObj');
+      return content.replace(
+        'var materialObj = null;',
+        'window.materialObj = null;'
+      );
+    }
+  });
+  logger.info('Registered interceptor for etestPlayer.js');
 
   // --- Execution ---
   stayActive();
