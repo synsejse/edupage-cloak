@@ -5,12 +5,12 @@
  */
 
 import { getFilepaths } from './get-filepaths';
-import { plugin } from 'bun';
+import { plugin, type PluginBuilder } from 'bun';
 
 // Plugin to handle ?raw imports (like Vite)
 const rawPlugin = {
   name: 'raw-loader',
-  setup(build) {
+  setup(build : PluginBuilder) {
     build.onLoad({ filter: /\?raw$/ }, async (args) => {
       const filePath = args.path.replace(/\?raw$/, '');
       const contents = await Bun.file(filePath).text();
