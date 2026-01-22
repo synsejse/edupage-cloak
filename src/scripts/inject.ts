@@ -9,7 +9,7 @@ import { createLogger, toast } from './internal';
   toast.success('EduPage Cloak loaded', 4000);
 
   // --- 1. Blocked Tracking Events ---
-  const BLOCKED_EVENTS = [
+  const BLOCKED_EVENTS = new Set([
     // Fullscreen tracking
     'webkitfullscreenchange.etestaplayer',
     'mozfullscreenchange.etestaplayer',
@@ -36,7 +36,109 @@ import { createLogger, toast } from './internal';
 
     // Keyboard tracking
     'keydown.etestplayeral',
-  ];
+  ]);
+
+  // --- 1b. Tracking Statistics ---
+  interface BlockStats {
+    blocked: Map<string, number>;
+    attempted: Map<string, number>;
+    trackingStartTime: number;
+    trackingDuration: number;
+    reportTimeout: ReturnType<typeof setTimeout> | null;
+  }
+
+  const blockStats: BlockStats = {
+    blocked: new Map(),
+    attempted: new Map(),
+    trackingStartTime: 0,
+    trackingDuration: 15000, // Track for 15 seconds after jQuery is found
+    reportTimeout: null,
+  };
+
+  const recordBlockedEvent = (eventName: string) => {
+    blockStats.blocked.set(
+      eventName,
+      (blockStats.blocked.get(eventName) || 0) + 1
+    );
+  };
+
+  const recordAttemptedEvent = (eventName: string) => {
+    blockStats.attempted.set(
+      eventName,
+      (blockStats.attempted.get(eventName) || 0) + 1
+    );
+  };
+
+  const generateBlockReport = () => {
+    const totalAttempted = blockStats.attempted.size;
+    const totalBlocked = blockStats.blocked.size;
+
+    if (totalAttempted === 0) {
+      logger.info('No tracking events detected during monitoring period');
+      toast.info('No tracking events detected', 4000);
+      return;
+    }
+
+    const blockedCount = Array.from(blockStats.blocked.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
+    const attemptedCount = Array.from(blockStats.attempted.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
+    const blockRate = (blockedCount / attemptedCount) * 100;
+
+    // Log detailed stats
+    logger.info(
+      `Block stats - Attempted: ${attemptedCount}, Blocked: ${blockedCount} (${blockRate.toFixed(1)}%)`
+    );
+    logger.info(
+      `Unique events attempted: ${Array.from(blockStats.attempted.keys()).join(', ')}`
+    );
+    logger.info(
+      `Unique events blocked: ${Array.from(blockStats.blocked.keys()).join(', ')}`
+    );
+
+    // Show appropriate toast based on block rate
+    if (blockRate === 100) {
+      toast.success(
+        `All tracking blocked: ${blockedCount}/${attemptedCount} events`,
+        5000
+      );
+    } else if (blockRate >= 50) {
+      const missed = attemptedCount - blockedCount;
+      toast.warn(
+        `Partial blocking: ${blockedCount}/${attemptedCount} events (${missed} missed)`,
+        6000
+      );
+    } else if (blockRate > 0) {
+      toast.error(
+        `Low block rate: ${blockedCount}/${attemptedCount} events (${blockRate.toFixed(0)}%)`,
+        8000
+      );
+    } else {
+      toast.error(
+        `Blocking failed: 0/${attemptedCount} tracking events blocked`,
+        0
+      );
+    }
+  };
+
+  const startBlockTracking = () => {
+    blockStats.trackingStartTime = Date.now();
+    blockStats.blocked.clear();
+    blockStats.attempted.clear();
+
+    // Schedule the report
+    blockStats.reportTimeout = setTimeout(() => {
+      generateBlockReport();
+    }, blockStats.trackingDuration);
+
+    logger.info(
+      `Block tracking started - will report in ${blockStats.trackingDuration / 1000}s`
+    );
+  };
 
   // --- 2. jQuery Event Blocker ---
   const patchJQuery = ($: any) => {
@@ -44,12 +146,24 @@ import { createLogger, toast } from './internal';
     $.fn.on = function (events: string, ...args: any[]) {
       if (typeof events === 'string') {
         const eventList = events.split(/\s+/);
-        const hasBlockedEvent = eventList.some((event) =>
-          BLOCKED_EVENTS.includes(event)
-        );
+        const blockedEvents: string[] = [];
 
-        if (hasBlockedEvent) {
-          logger.info(`Blocked tracking event: ${events}`);
+        for (const event of eventList) {
+          if (BLOCKED_EVENTS.has(event)) {
+            blockedEvents.push(event);
+            // Track during monitoring period
+            if (
+              Date.now() - blockStats.trackingStartTime <
+              blockStats.trackingDuration
+            ) {
+              recordAttemptedEvent(event);
+              recordBlockedEvent(event);
+            }
+          }
+        }
+
+        if (blockedEvents.length > 0) {
+          logger.info(`Blocked tracking event(s): ${blockedEvents.join(', ')}`);
           // Don't spam toasts for each blocked event - just log
           return this;
         }
@@ -203,6 +317,8 @@ import { createLogger, toast } from './internal';
         clearInterval(jqInterval);
         logger.info('jQuery patched - tracking events blocked');
         toast.success('Event tracking blocked', 4000);
+        // Start tracking blocked events after jQuery is patched
+        startBlockTracking();
       }
     }, 100);
 
