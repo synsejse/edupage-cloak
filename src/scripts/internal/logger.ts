@@ -1,21 +1,16 @@
-// Logger
-// Just a simple logger with global singleton pattern to prevent duplicate declarations
-// when multiple scripts import this module in the same execution context (MAIN world)
-
-type LogLevelName = 'error' | 'warn' | 'info' | 'debug' | 'silent';
+// Logger - Simple singleton logger with styled console output
 
 const LOGGER_GLOBAL_KEY = '__edupage_cloak_logger__';
 
+type LogLevel = 'error' | 'warn' | 'info' | 'debug';
+
 export interface Logger {
   name?: string;
-
   error(msg: string): void;
   warn(msg: string): void;
   info(msg: string): void;
   debug(msg: string): void;
-
   child(name: string): Logger;
-
   time(label: string): void;
   timeEnd(label: string): void;
 }
@@ -30,75 +25,49 @@ declare global {
   }
 }
 
-/* ---------------------------------- styles -------------------------------- */
-
-type StyleMap = Record<LogLevelName | 'tag', string>;
-
-const STYLES: StyleMap = {
+// Console styles for each log level
+const STYLES = {
   tag: 'background:#222;color:#fff;padding:1px 6px;border-radius:3px;font-weight:700;',
-
   error: 'color:#fff;background:#c0392b;padding:1px 4px;border-radius:2px;',
   warn: 'color:#663c00;background:#f1c40f;padding:1px 4px;border-radius:2px;',
   info: 'color:#2f80ed;font-weight:600;',
   debug: 'color:#7f8c8d;font-style:italic;',
+} as const;
 
-  // not used, but keeps TS happy
-  silent: 'color:inherit;',
-};
-
-type ConsoleMethod = (...args: unknown[]) => void;
-
-const safe = <K extends keyof Console>(key: K): ConsoleMethod =>
-  (console[key] ?? console.log).bind(console);
-
-const safeConsole = {
-  log: safe('log'),
-  info: safe('info'),
-  warn: safe('warn'),
-  error: safe('error'),
-  time: safe('time'),
-  timeEnd: safe('timeEnd'),
-};
-
-const CONSOLE_METHOD: Record<LogLevelName, keyof typeof safeConsole> = {
+const CONSOLE_METHODS: Record<LogLevel, 'error' | 'warn' | 'info' | 'log'> = {
   error: 'error',
   warn: 'warn',
   info: 'info',
   debug: 'log',
-  silent: 'log',
 };
 
-const now = () => new Date().toISOString();
+// Safe console method accessor
+const getConsoleMethod = (method: keyof Console) =>
+  (console[method] as (...args: unknown[]) => void)?.bind(console) ??
+  console.log.bind(console);
 
-function print(level: LogLevelName, name: string | undefined, msg: string) {
-  if (level === 'silent') return;
+function print(level: LogLevel, name: string | undefined, msg: string): void {
+  const tag = `[${name ?? 'log'}]`;
+  const timestamp = new Date().toISOString();
 
-  const tag = name ? `[${name}]` : '[log]';
-  const base = `%c${tag}%c %c${now()}%c ${msg}`;
-
-  const args = [
-    base,
+  getConsoleMethod(CONSOLE_METHODS[level])(
+    `%c${tag}%c %c${timestamp}%c ${msg}`,
     STYLES.tag,
     'color:inherit;font-size:11px;margin-left:6px;',
     STYLES[level],
-    'color:inherit;',
-  ];
-
-  safeConsole[CONSOLE_METHOD[level]](...args);
+    'color:inherit;'
+  );
 }
 
 function createLoggerImpl(name?: string): Logger {
-  const makeTimerLabel = (label: string) => `${name ?? 'log'}:${label}`;
-
-  const write = (lvl: LogLevelName, msg: string) => print(lvl, name, msg);
+  const timerLabel = (label: string) => `${name ?? 'log'}:${label}`;
 
   return {
     name,
-
-    error: (m) => write('error', m),
-    warn: (m) => write('warn', m),
-    info: (m) => write('info', m),
-    debug: (m) => write('debug', m),
+    error: (msg) => print('error', name, msg),
+    warn: (msg) => print('warn', name, msg),
+    info: (msg) => print('info', name, msg),
+    debug: (msg) => print('debug', name, msg),
 
     child(childName) {
       return createLoggerImpl(name ? `${name}:${childName}` : childName);
@@ -106,37 +75,33 @@ function createLoggerImpl(name?: string): Logger {
 
     time(label) {
       try {
-        safeConsole.time(makeTimerLabel(label));
-      } catch {}
+        getConsoleMethod('time')(timerLabel(label));
+      } catch {
+        // Ignore timer errors
+      }
     },
 
     timeEnd(label) {
       try {
-        safeConsole.timeEnd(makeTimerLabel(label));
-      } catch {}
+        getConsoleMethod('timeEnd')(timerLabel(label));
+      } catch {
+        // Ignore timer errors
+      }
     },
   };
 }
 
-// Get or create the global logger factory
+// Singleton factory getter
 function getLoggerFactory(): LoggerFactory {
-  if (typeof window !== 'undefined') {
-    // Return existing factory if already initialized
-    if (window[LOGGER_GLOBAL_KEY]) {
-      return window[LOGGER_GLOBAL_KEY];
-    }
-
-    // Create and store new factory
-    const factory: LoggerFactory = {
-      createLogger: createLoggerImpl,
-    };
-    window[LOGGER_GLOBAL_KEY] = factory;
-    return factory;
+  if (typeof window === 'undefined') {
+    return { createLogger: createLoggerImpl };
   }
 
-  // Fallback for non-browser environments
-  return { createLogger: createLoggerImpl };
+  if (!window[LOGGER_GLOBAL_KEY]) {
+    window[LOGGER_GLOBAL_KEY] = { createLogger: createLoggerImpl };
+  }
+
+  return window[LOGGER_GLOBAL_KEY];
 }
 
-// Export the createLogger function from the singleton factory
 export const createLogger = getLoggerFactory().createLogger;

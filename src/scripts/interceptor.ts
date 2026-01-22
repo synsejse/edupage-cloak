@@ -1,5 +1,4 @@
-// Interceptor Script
-// Patches XHR and Fetch to intercept and modify EduPage requests
+// Interceptor - XHR and Fetch proxy for modifying EduPage requests
 
 import { createLogger, toast } from './internal';
 
@@ -10,46 +9,38 @@ import { createLogger, toast } from './internal';
   const OriginalXHR = window.XMLHttpRequest;
   const originalFetch = window.fetch.bind(window);
 
-  // Storage for interceptor rules (will be populated by inject.js later)
+  // Initialize interceptor rules storage
   window.__interceptorRules = window.__interceptorRules || [];
   window.__originalXHR = OriginalXHR;
   window.__originalFetch = originalFetch;
 
-  // Notify that interceptor is loaded early
   toast.info('Network interceptor loaded', 3000);
   logger.info('XHR and Fetch interceptor initialized');
 
-  // XHR Proxy
-  class XHRProxy extends OriginalXHR {
-    private _url: string | undefined;
-    private _method: string | undefined;
-    private _headers: Record<string, string>;
-    private _overrideResponseText: string | null;
-    private _overrideStatus: number | null;
-    private _overrideStatusText: string | null;
-    private _overrideReadyState: number | null;
+  // Find matching rule for a URL
+  function findMatchingRule(url: string): InterceptorRule | undefined {
+    return window.__interceptorRules.find((r) => r.pattern.test(url));
+  }
 
-    constructor() {
-      super();
-      this._url = undefined;
-      this._method = undefined;
-      this._headers = {};
-      this._overrideResponseText = null;
-      this._overrideStatus = null;
-      this._overrideStatusText = null;
-      this._overrideReadyState = null;
-    }
+  // XHR Proxy class
+  class XHRProxy extends OriginalXHR {
+    private _url = '';
+    private _method = '';
+    private _headers: Record<string, string> = {};
+    private _interceptedResponse: string | null = null;
+    private _interceptedStatus = 0;
+    private _interceptedStatusText = '';
 
     open(
       method: string,
       url: string | URL,
-      async: boolean = true,
+      async = true,
       username?: string | null,
       password?: string | null
     ): void {
       this._method = method;
-      this._url = typeof url === 'string' ? url : url.toString();
-      // @ts-ignore - TS signature mismatch with standard XHR open but this is correct for proxying
+      this._url = url.toString();
+      // @ts-ignore - signature mismatch but works correctly
       super.open(method, url, async, username, password);
     }
 
@@ -59,121 +50,113 @@ import { createLogger, toast } from './internal';
     }
 
     send(body?: Document | XMLHttpRequestBodyInit | null): void {
-      const url = this._url;
-      const rules = window.__interceptorRules || [];
-      const matchedRule = url ? rules.find((r) => r.pattern.test(url)) : null;
+      const rule = findMatchingRule(this._url);
 
-      if (matchedRule && url && this._method) {
-        logger.info(`XHR intercepting: ${url}`);
-
-        const init: RequestInit = {
-          method: this._method,
-          headers: this._headers,
-          body: body as BodyInit,
-        };
-        if (this.withCredentials) init.credentials = 'include';
-
-        // Use patched fetch (which also applies modifiers)
-        window
-          .fetch(url, init)
-          .then(async (response) => {
-            const text = await response.text();
-            this._overrideResponseText = text;
-            this._overrideStatus = response.status;
-            this._overrideStatusText = response.statusText;
-            this._overrideReadyState = 4; // DONE
-
-            this.dispatchEvent(new Event('readystatechange'));
-            this.dispatchEvent(new Event('load'));
-            if (this.onload) {
-              // @ts-ignore - event type mismatch is fine here
-              this.onload(new Event('load'));
-            }
-          })
-          .catch((err) => {
-            logger.error(`XHR error: ${err}`);
-            toast.error(`XHR interception failed: ${url}`, 0);
-            this._overrideStatus = 0;
-            this.dispatchEvent(new Event('error'));
-            if (this.onerror) {
-              // @ts-ignore
-              this.onerror(new Event('error'));
-            }
-          });
+      if (!rule) {
+        super.send(body);
         return;
       }
 
-      super.send(body);
+      logger.info(`XHR intercepting: ${this._url}`);
+
+      const init: RequestInit = {
+        method: this._method,
+        headers: this._headers,
+        body: body as BodyInit,
+        credentials: this.withCredentials ? 'include' : 'same-origin',
+      };
+
+      window
+        .fetch(this._url, init)
+        .then(async (response) => {
+          const text = await response.text();
+          this._interceptedResponse = text;
+          this._interceptedStatus = response.status;
+          this._interceptedStatusText = response.statusText;
+
+          this.dispatchEvent(new Event('readystatechange'));
+          this.dispatchEvent(new Event('load'));
+          this.onload?.(new ProgressEvent('load'));
+        })
+        .catch((err) => {
+          logger.error(`XHR error: ${err}`);
+          toast.error(`XHR interception failed: ${this._url}`, 0);
+          this._interceptedStatus = 0;
+          this.dispatchEvent(new Event('error'));
+          this.onerror?.(new ProgressEvent('error'));
+        });
     }
 
     get responseText(): string {
-      return this._overrideResponseText !== null
-        ? this._overrideResponseText
-        : super.responseText;
+      return this._interceptedResponse ?? super.responseText;
     }
-    get response(): any {
-      return this._overrideResponseText !== null
-        ? this._overrideResponseText
-        : super.response;
+
+    get response(): unknown {
+      return this._interceptedResponse ?? super.response;
     }
+
     get status(): number {
-      return this._overrideStatus !== null
-        ? this._overrideStatus
+      return this._interceptedResponse !== null
+        ? this._interceptedStatus
         : super.status;
     }
+
     get statusText(): string {
-      return this._overrideStatusText !== null
-        ? this._overrideStatusText
+      return this._interceptedResponse !== null
+        ? this._interceptedStatusText
         : super.statusText;
     }
+
     get readyState(): number {
-      return this._overrideReadyState !== null
-        ? this._overrideReadyState
-        : super.readyState;
+      return this._interceptedResponse !== null ? 4 : super.readyState;
     }
   }
 
   window.XMLHttpRequest = XHRProxy;
 
-  // Fetch patch
-  const patchedFetch = async function (
+  // Fetch proxy
+  async function patchedFetch(
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> {
-    let url: string;
-    if (typeof input === 'string') {
-      url = input;
-    } else if (input instanceof URL) {
-      url = input.toString();
-    } else {
-      url = input.url;
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+    const rule = findMatchingRule(url);
+
+    if (!rule) {
+      return originalFetch(input, init);
     }
 
-    const rules = window.__interceptorRules || [];
-    const matchedRule = rules.find((r) => r.pattern.test(url));
+    logger.info(`Fetch intercepting: ${url}`);
 
-    if (matchedRule) {
-      logger.info(`Fetch intercepting: ${url}`);
-      try {
-        const response = await originalFetch(input, init);
-        if (!response.ok) return response;
-        const text = await response.text();
-        const modifiedText = await matchedRule.modifier(text, url);
-        return new Response(modifiedText, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-        });
-      } catch (e) {
-        logger.error(`Fetch error: ${e}`);
-        toast.error(`Fetch interception failed: ${url}`, 0);
-        throw e;
+    try {
+      const response = await originalFetch(input, init);
+
+      if (!response.ok) {
+        return response;
       }
-    }
-    return originalFetch(input, init);
-  };
 
-  // Copy static properties from original fetch (like preconnect)
+      const text = await response.text();
+      const modified = await rule.modifier(text, url);
+
+      return new Response(modified, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    } catch (e) {
+      logger.error(`Fetch error: ${e}`);
+      toast.error(`Fetch interception failed: ${url}`, 0);
+      throw e;
+    }
+  }
+
+  // Preserve static properties from original fetch
   Object.assign(patchedFetch, originalFetch);
   window.fetch = patchedFetch as typeof fetch;
 })();
