@@ -2,29 +2,12 @@
 // Injects the patch scripts into the page context
 
 import { createLogger } from './internal';
-import interceptorCode from './interceptor.js?raw';
-
 (function (): void {
   'use strict';
 
   const logger = createLogger('content');
 
   logger.info('Content script loaded');
-
-  /**
-   * Inject XHR/Fetch interceptor synchronously BEFORE any page scripts run.
-   * This MUST be inline (textContent) to execute synchronously.
-   */
-  const injectXHRPatchSync = (): void => {
-    const script = document.createElement('script');
-    // This code runs synchronously in the page context
-    script.textContent = interceptorCode;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
-  };
-
-  // Inject XHR patch IMMEDIATELY (synchronous)
-  injectXHRPatchSync();
 
   /**
    * Helper to inject a script into the Main World (page context).

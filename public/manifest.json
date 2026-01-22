@@ -8,6 +8,13 @@
   "content_scripts": [
     {
       "matches": ["*://*.edupage.org/*"],
+      "js": ["interceptor.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.edupage.org/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_start",

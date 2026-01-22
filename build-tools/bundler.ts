@@ -5,26 +5,6 @@
  */
 
 import { getFilepaths } from './get-filepaths';
-import { plugin, type PluginBuilder } from 'bun';
-
-// Plugin to handle ?raw imports (like Vite)
-const rawPlugin = {
-  name: 'raw-loader',
-  setup(build : PluginBuilder) {
-    build.onLoad({ filter: /\?raw$/ }, async (args) => {
-      const filePath = args.path.replace(/\?raw$/, '');
-      const contents = await Bun.file(filePath).text();
-      return {
-        contents: `export default ${JSON.stringify(contents)};`,
-        loader: 'js',
-      };
-    });
-    build.onResolve({ filter: /\?raw$/ }, (args) => {
-      const resolved = import.meta.resolveSync(args.path.replace(/\?raw$/, ''), args.importer);
-      return { path: resolved + '?raw', namespace: 'file' };
-    });
-  },
-};
 
 const entrypoints = await getFilepaths();
 
@@ -37,5 +17,4 @@ await Bun.build({
     whitespace: false,
     syntax: false,
   },
-  plugins: [rawPlugin],
 });

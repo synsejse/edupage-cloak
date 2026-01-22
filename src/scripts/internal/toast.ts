@@ -1,21 +1,33 @@
 // Toast Utility
 // Display timed debug messages on screen for mobile debugging
+// Uses a global singleton pattern to prevent duplicate declarations when
+// multiple scripts import this module in the same execution context (MAIN world)
 
-export type ToastType = 'info' | 'warn' | 'error' | 'success' | 'debug';
+const TOAST_GLOBAL_KEY = '__edupage_cloak_toast__';
 
-interface ToastOptions {
-  duration?: number; // milliseconds, 0 = permanent
-  type?: ToastType;
-  position?: 'top' | 'bottom';
+interface ToastAPI {
+  info: (msg: string, duration?: number) => void;
+  warn: (msg: string, duration?: number) => void;
+  error: (msg: string, duration?: number) => void;
+  success: (msg: string, duration?: number) => void;
+  debug: (msg: string, duration?: number) => void;
+  show: (msg: string, options?: ToastOptions) => void;
+  clear: () => void;
 }
 
-class ToastManager {
-  private container: HTMLElement | null = null;
-  private messageCount = 0;
-  private initialized = false;
+function createToastManager(): ToastAPI {
+  let container: HTMLElement | null = null;
+  let messageCount = 0;
+  let initialized = false;
 
-  private initialize(): void {
-    if (this.initialized) return;
+  function initialize(): void {
+    if (initialized) return;
+
+    // Check if styles already exist
+    if (document.getElementById('toast-styles')) {
+      initialized = true;
+      return;
+    }
 
     // Add styles to document
     const style = document.createElement('style');
@@ -117,129 +129,142 @@ class ToastManager {
         }
       }
     `;
-    document.head.appendChild(style);
+    (document.head || document.documentElement).appendChild(style);
 
-    this.initialized = true;
+    initialized = true;
   }
 
-  private ensureContainer(position: 'top' | 'bottom' = 'top'): HTMLElement {
-    this.initialize();
+  function ensureContainer(position: 'top' | 'bottom' = 'top'): HTMLElement {
+    initialize();
 
     // Always check if container exists in DOM first
-    if (!this.container) {
-      this.container = document.getElementById(
+    if (!container) {
+      container = document.getElementById(
         'edupage-cloak-toast-container'
       ) as HTMLElement;
     }
 
     // If still not found, create it
-    if (!this.container || !document.body.contains(this.container)) {
+    if (!container || !document.documentElement.contains(container)) {
       // Remove any orphaned containers first
       const existing = document.querySelectorAll(
         '#edupage-cloak-toast-container'
       );
       existing.forEach((el) => el.remove());
 
-      this.container = document.createElement('div');
-      this.container.id = 'edupage-cloak-toast-container';
+      container = document.createElement('div');
+      container.id = 'edupage-cloak-toast-container';
 
       // Wait for body to be ready
       if (document.body) {
-        document.body.appendChild(this.container);
+        document.body.appendChild(container);
       } else {
-        document.documentElement.appendChild(this.container);
+        document.documentElement.appendChild(container);
       }
     }
 
     // Update position class
     if (position === 'bottom') {
-      this.container.classList.add('bottom');
+      container.classList.add('bottom');
     } else {
-      this.container.classList.remove('bottom');
+      container.classList.remove('bottom');
     }
 
-    return this.container;
+    return container;
   }
 
-  show(message: string, options: ToastOptions = {}): void {
+  function show(message: string, options: ToastOptions = {}): void {
     const { duration = 3000, type = 'info', position = 'top' } = options;
 
-    const container = this.ensureContainer(position);
+    const toastContainer = ensureContainer(position);
 
-    const toast = document.createElement('div');
-    const id = `toast-${++this.messageCount}`;
-    toast.id = id;
-    toast.className = `edupage-toast ${type}`;
-    toast.textContent = message;
-    toast.setAttribute('data-toast-id', id);
+    const toastEl = document.createElement('div');
+    const id = `toast-${++messageCount}`;
+    toastEl.id = id;
+    toastEl.className = `edupage-toast ${type}`;
+    toastEl.textContent = message;
+    toastEl.setAttribute('data-toast-id', id);
 
     // Click to dismiss
-    toast.addEventListener('click', () => {
-      this.dismiss(toast);
+    toastEl.addEventListener('click', () => {
+      dismiss(toastEl);
     });
 
     // Add to container (new toasts go to the bottom)
-    container.appendChild(toast);
+    toastContainer.appendChild(toastEl);
 
     // Auto dismiss
     if (duration > 0) {
       setTimeout(() => {
-        this.dismiss(toast);
+        dismiss(toastEl);
       }, duration);
     }
   }
 
-  private dismiss(toast: HTMLElement): void {
-    if (!toast.parentElement) return;
+  function dismiss(toastEl: HTMLElement): void {
+    if (!toastEl.parentElement) return;
 
-    toast.classList.add('removing');
+    toastEl.classList.add('removing');
 
     setTimeout(() => {
-      toast.remove();
+      toastEl.remove();
 
       // Clean up container if empty
-      if (this.container && this.container.children.length === 0) {
-        this.container.remove();
-        this.container = null;
+      if (container && container.children.length === 0) {
+        container.remove();
+        container = null;
       }
     }, 300);
   }
 
-  clear(): void {
-    if (this.container) {
-      this.container.remove();
-      this.container = null;
+  function clear(): void {
+    if (container) {
+      container.remove();
+      container = null;
     }
   }
+
+  return {
+    info: (msg: string, duration = 3000) =>
+      show(msg, { type: 'info', duration }),
+
+    warn: (msg: string, duration = 3000) =>
+      show(msg, { type: 'warn', duration }),
+
+    error: (msg: string, duration = 5000) =>
+      show(msg, { type: 'error', duration }),
+
+    success: (msg: string, duration = 3000) =>
+      show(msg, { type: 'success', duration }),
+
+    debug: (msg: string, duration = 2000) =>
+      show(msg, { type: 'debug', duration }),
+
+    show: (msg: string, options?: ToastOptions) => show(msg, options),
+
+    clear: () => clear(),
+  };
 }
 
-// Singleton instance
-const toastManager = new ToastManager();
+// Use existing global instance if available, otherwise create new one
+function getToast(): ToastAPI {
+  if (typeof window !== 'undefined') {
+    // Return existing instance if already initialized
+    const existing = (window as any)[TOAST_GLOBAL_KEY] as ToastAPI | undefined;
+    if (existing) {
+      return existing;
+    }
 
-// Export convenient methods
-export const toast = {
-  info: (msg: string, duration = 3000) =>
-    toastManager.show(msg, { type: 'info', duration }),
+    // Create and store new instance
+    const instance = createToastManager();
+    (window as any)[TOAST_GLOBAL_KEY] = instance;
+    window.toast = instance;
+    return instance;
+  }
 
-  warn: (msg: string, duration = 3000) =>
-    toastManager.show(msg, { type: 'warn', duration }),
-
-  error: (msg: string, duration = 5000) =>
-    toastManager.show(msg, { type: 'error', duration }),
-
-  success: (msg: string, duration = 3000) =>
-    toastManager.show(msg, { type: 'success', duration }),
-
-  debug: (msg: string, duration = 2000) =>
-    toastManager.show(msg, { type: 'debug', duration }),
-
-  show: (msg: string, options?: ToastOptions) =>
-    toastManager.show(msg, options),
-
-  clear: () => toastManager.clear(),
-};
-
-// Make it globally available for easy debugging
-if (typeof window !== 'undefined') {
-  (window as any).toast = toast;
+  // Fallback for non-browser environments (shouldn't happen, but type-safe)
+  return createToastManager();
 }
+
+// Export the singleton
+export const toast = getToast();

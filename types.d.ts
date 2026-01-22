@@ -1,16 +1,3 @@
-// --- jQuery Types ---
-
-interface JQueryStatic {
-  Deferred(): any;
-}
-
-interface JQuery {
-  etestPlayer: {
-    (options?: any): JQuery;
-    defaults: any;
-  };
-}
-
 // --- EduPage Types ---
 
 interface QuestionWidget {
@@ -21,7 +8,10 @@ interface QuestionWidget {
     correctAnswers?: string[];
     answers?: Array<{ answerid: string; text: string }>;
     pairs?: Array<{ itemid: string; r_itemid: string; l: string; r: string }>;
-    groups?: Array<{ title: string; items: Array<{ itemid: string; text: string }> }>;
+    groups?: Array<{
+      title: string;
+      items: Array<{ itemid: string; text: string }>;
+    }>;
     points?: Array<{ pointid: string; r_pointid: string }>;
     correctExpression?: string;
   };
@@ -46,18 +36,29 @@ interface InterceptorRule {
   modifier: (content: string, url: string) => string | Promise<string>;
 }
 
+// --- Toast Types ---
+
+type ToastType = 'info' | 'warn' | 'error' | 'success' | 'debug';
+
+interface ToastOptions {
+  duration?: number; // milliseconds, 0 = permanent
+  type?: ToastType;
+  position?: 'top' | 'bottom';
+}
+
 // --- Global Window Extensions ---
 
 interface Window {
   jQuery?: any;
   $: any;
-  materialObj: MaterialObj;
+  materialObj: MaterialObj | null;
   toast: {
     info: (msg: string, duration?: number) => void;
     warn: (msg: string, duration?: number) => void;
     error: (msg: string, duration?: number) => void;
     success: (msg: string, duration?: number) => void;
     debug: (msg: string, duration?: number) => void;
+    show: (msg: string, options?: ToastOptions) => void;
     clear: () => void;
   };
   __interceptorRules: InterceptorRule[];
@@ -65,12 +66,3 @@ interface Window {
   __originalXHR: typeof XMLHttpRequest;
   __originalFetch: typeof fetch;
 }
-
-// --- Document Extensions ---
-
-interface Document {
-  webkitVisibilityState: string;
-  mozFullScreenElement: any;
-  webkitFullscreenElement: any;
-}
-

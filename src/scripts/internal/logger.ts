@@ -1,7 +1,34 @@
 // Logger
-// Just a simple logger
+// Just a simple logger with global singleton pattern to prevent duplicate declarations
+// when multiple scripts import this module in the same execution context (MAIN world)
 
-export type LogLevelName = 'error' | 'warn' | 'info' | 'debug' | 'silent';
+type LogLevelName = 'error' | 'warn' | 'info' | 'debug' | 'silent';
+
+const LOGGER_GLOBAL_KEY = '__edupage_cloak_logger__';
+
+export interface Logger {
+  name?: string;
+
+  error(msg: string): void;
+  warn(msg: string): void;
+  info(msg: string): void;
+  debug(msg: string): void;
+
+  child(name: string): Logger;
+
+  time(label: string): void;
+  timeEnd(label: string): void;
+}
+
+interface LoggerFactory {
+  createLogger: (name?: string) => Logger;
+}
+
+declare global {
+  interface Window {
+    [LOGGER_GLOBAL_KEY]?: LoggerFactory;
+  }
+}
 
 /* ---------------------------------- styles -------------------------------- */
 
@@ -60,21 +87,7 @@ function print(level: LogLevelName, name: string | undefined, msg: string) {
   safeConsole[CONSOLE_METHOD[level]](...args);
 }
 
-export interface Logger {
-  name?: string;
-
-  error(msg: string): void;
-  warn(msg: string): void;
-  info(msg: string): void;
-  debug(msg: string): void;
-
-  child(name: string): Logger;
-
-  time(label: string): void;
-  timeEnd(label: string): void;
-}
-
-export function createLogger(name?: string): Logger {
+function createLoggerImpl(name?: string): Logger {
   const makeTimerLabel = (label: string) => `${name ?? 'log'}:${label}`;
 
   const write = (lvl: LogLevelName, msg: string) => print(lvl, name, msg);
@@ -88,7 +101,7 @@ export function createLogger(name?: string): Logger {
     debug: (m) => write('debug', m),
 
     child(childName) {
-      return createLogger(name ? `${name}:${childName}` : childName);
+      return createLoggerImpl(name ? `${name}:${childName}` : childName);
     },
 
     time(label) {
@@ -104,3 +117,26 @@ export function createLogger(name?: string): Logger {
     },
   };
 }
+
+// Get or create the global logger factory
+function getLoggerFactory(): LoggerFactory {
+  if (typeof window !== 'undefined') {
+    // Return existing factory if already initialized
+    if (window[LOGGER_GLOBAL_KEY]) {
+      return window[LOGGER_GLOBAL_KEY];
+    }
+
+    // Create and store new factory
+    const factory: LoggerFactory = {
+      createLogger: createLoggerImpl,
+    };
+    window[LOGGER_GLOBAL_KEY] = factory;
+    return factory;
+  }
+
+  // Fallback for non-browser environments
+  return { createLogger: createLoggerImpl };
+}
+
+// Export the createLogger function from the singleton factory
+export const createLogger = getLoggerFactory().createLogger;

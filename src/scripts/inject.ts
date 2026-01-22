@@ -186,7 +186,7 @@ import { createLogger, toast } from './internal';
         'var materialObj = null;',
         'window.materialObj = null;'
       );
-    }
+    },
   });
   logger.info('Registered interceptor for etestPlayer.js');
 
