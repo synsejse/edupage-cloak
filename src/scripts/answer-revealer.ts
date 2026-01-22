@@ -275,7 +275,11 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
 function showAnswers(): void {
   if (!window.materialObj) {
     logger.error('materialObj not found');
-    showToast('error', 'Test not loaded yet', 3000);
+    showToast(
+      'error',
+      'Test not loaded yet - wait for page to fully load',
+      5000
+    );
     return;
   }
 
@@ -295,7 +299,7 @@ function showAnswers(): void {
 
   isShowing = true;
   logger.info('Answers shown');
-  showToast('success', 'Answers revealed');
+  showToast('success', 'Answers revealed', 3000);
 }
 
 function hideAnswers(): void {
@@ -316,7 +320,7 @@ function hideAnswers(): void {
 
   isShowing = false;
   logger.info('Answers hidden');
-  showToast('info', 'Answers hidden');
+  showToast('info', 'Answers hidden', 2000);
 }
 
 function toggleAnswers(): void {
@@ -461,4 +465,5 @@ window.__answerRevealer = {
   },
 };
 
-logger.info('Ready (tap button to toggle)');
+logger.info('Answer revealer ready');
+showToast('info', 'Answer revealer ready', 3000);

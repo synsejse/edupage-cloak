@@ -1,7 +1,7 @@
 // Interceptor Script
 // Patches XHR and Fetch to intercept and modify EduPage requests
 
-import { createLogger } from './internal';
+import { createLogger, toast } from './internal';
 
 (function () {
   'use strict';
@@ -14,6 +14,10 @@ import { createLogger } from './internal';
   window.__interceptorRules = window.__interceptorRules || [];
   window.__originalXHR = OriginalXHR;
   window.__originalFetch = originalFetch;
+
+  // Notify that interceptor is loaded early
+  toast.info('Network interceptor loaded', 3000);
+  logger.info('XHR and Fetch interceptor initialized');
 
   // XHR Proxy
   class XHRProxy extends OriginalXHR {
@@ -88,6 +92,7 @@ import { createLogger } from './internal';
           })
           .catch((err) => {
             logger.error(`XHR error: ${err}`);
+            toast.error(`XHR interception failed: ${url}`, 0);
             this._overrideStatus = 0;
             this.dispatchEvent(new Event('error'));
             if (this.onerror) {
@@ -161,6 +166,7 @@ import { createLogger } from './internal';
         });
       } catch (e) {
         logger.error(`Fetch error: ${e}`);
+        toast.error(`Fetch interception failed: ${url}`, 0);
         throw e;
       }
     }

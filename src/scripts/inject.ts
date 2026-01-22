@@ -5,8 +5,8 @@ import { createLogger, toast } from './internal';
 (function () {
   const logger = createLogger('inject');
 
-  // Show initial load message
-  toast.info('EduPage Cloak active', 2000);
+  // Show initial load message - longer duration for visibility
+  toast.success('EduPage Cloak loaded', 4000);
 
   // --- 1. Blocked Tracking Events ---
   const BLOCKED_EVENTS = [
@@ -50,7 +50,7 @@ import { createLogger, toast } from './internal';
 
         if (hasBlockedEvent) {
           logger.info(`Blocked tracking event: ${events}`);
-          toast.info(`Blocked tracking event: ${events}`, 2000);
+          // Don't spam toasts for each blocked event - just log
           return this;
         }
       }
@@ -85,7 +85,8 @@ import { createLogger, toast } from './internal';
       return true;
     };
 
-    toast.success('Always visible mode active', 2000);
+    logger.info('Visibility spoofing active');
+    toast.info('Visibility spoofing active', 3000);
   };
 
   // --- 4. JSON.stringify Interceptor for answerLog ---
@@ -155,13 +156,13 @@ import { createLogger, toast } from './internal';
               ).length;
 
               toast.warn(
-                `📤 Tracking: ${interestingCount} events (${mainTypes})`,
-                3000
+                `Tracking detected: ${interestingCount} events (${mainTypes})`,
+                5000
               );
             }
           } catch (e) {
             logger.error(`Error processing answerLogByWidget: ${e}`);
-            toast.error('Error processing tracking data', 3000);
+            toast.error('Error processing tracking data', 0);
           }
         }
       }
@@ -171,43 +172,64 @@ import { createLogger, toast } from './internal';
     };
 
     logger.info('JSON.stringify patched for answerLog');
-    toast.debug('JSON interceptor active', 2000);
+    toast.info('JSON interceptor ready', 3000);
   };
 
-  // --- 3. Fetch/XHR Interceptor ---
+  // --- 5. Fetch/XHR Interceptor Rules ---
   // Register rules with the synchronously-injected interceptor from content.ts
   // Expose materialObj globally to allow inspection/modification
-  window.__interceptorRules = window.__interceptorRules || [];
-  window.__interceptorRules.push({
-    pattern: /elearning\/pics\/js\/etest\/etestPlayer\.js/,
-    modifier: (content) => {
-      logger.info('Patching etestPlayer.js: Exposing materialObj');
-      return content.replace(
-        'var materialObj = null;',
-        'window.materialObj = null;'
-      );
-    },
-  });
-  logger.info('Registered interceptor for etestPlayer.js');
+  const setupInterceptorRules = () => {
+    window.__interceptorRules = window.__interceptorRules || [];
+    window.__interceptorRules.push({
+      pattern: /elearning\/pics\/js\/etest\/etestPlayer\.js/,
+      modifier: (content) => {
+        logger.info('Patching etestPlayer.js: Exposing materialObj');
+        toast.success('Test player intercepted', 4000);
+        return content.replace(
+          'var materialObj = null;',
+          'window.materialObj = null;'
+        );
+      },
+    });
+    logger.info('Registered interceptor for etestPlayer.js');
+    toast.info('Network interceptor ready', 3000);
+  };
 
-  // --- Execution ---
+  // --- 6. jQuery Watcher ---
+  const watchForJQuery = () => {
+    const jqInterval = setInterval(() => {
+      if (window.jQuery?.fn?.on) {
+        patchJQuery(window.jQuery);
+        clearInterval(jqInterval);
+        logger.info('jQuery patched - tracking events blocked');
+        toast.success('Event tracking blocked', 4000);
+      }
+    }, 100);
+
+    // Timeout after 10 seconds
+    setTimeout(() => {
+      clearInterval(jqInterval);
+      if (!window.jQuery?.fn?.on) {
+        logger.warn('jQuery not detected after 10s');
+        toast.error('jQuery not found - some blocking may not work', 0);
+      }
+    }, 10000);
+  };
+
+  // --- Execute all patches ---
+  logger.info('Starting injection sequence...');
+
+  // Step 1: Visibility spoofing (immediate)
   stayActive();
+
+  // Step 2: JSON interceptor (immediate)
   patchJSONStringify();
 
-  const jqInterval = setInterval(() => {
-    if (window.jQuery?.fn?.on) {
-      patchJQuery(window.jQuery);
-      clearInterval(jqInterval);
-      logger.info('Tracking suppressed.');
-      toast.success('Tracking blocked');
-    }
-  }, 100);
-  setTimeout(() => {
-    clearInterval(jqInterval);
-    // If jQuery wasn't found, show warning
-    if (!window.jQuery?.fn?.on) {
-      logger.warn('jQuery not detected');
-      toast.warn('jQuery not detected', 3000);
-    }
-  }, 10000);
+  // Step 3: Network interceptor rules (immediate)
+  setupInterceptorRules();
+
+  // Step 4: jQuery watcher (async, polls until found)
+  watchForJQuery();
+
+  logger.info('Injection sequence complete');
 })();
