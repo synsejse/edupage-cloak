@@ -1,3 +1,10 @@
+// --- CSS Module Declarations ---
+
+declare module '*.css' {
+  const content: string;
+  export default content;
+}
+
 // --- EduPage Types ---
 
 interface QuestionWidget {

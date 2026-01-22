@@ -1,6 +1,8 @@
 // Answer Revealer - Shows correct answers for EduPage tests
 
 import { createLogger } from './internal/logger';
+import revealerStyles from './styles/answer-revealer.css';
+import answerBoxStyles from './styles/answer-boxes.css';
 
 const logger = createLogger('revealer');
 
@@ -13,13 +15,16 @@ const showToast = (
   window.toast?.[type]?.(msg, duration);
 };
 
-const STYLES = {
-  highlight: '2px solid #2196F3',
-  infoBox:
-    'background:#2196F3;color:#fff;padding:8px;margin:4px 0;border-radius:4px;font-family:system-ui;',
-  warningBox:
-    'background:#f44336;color:#fff;padding:8px;margin:4px 0;border-radius:4px;font-family:system-ui;',
-} as const;
+const ANSWER_STYLES_ID = 'edupage-cloak-answer-styles';
+
+// Inject answer box styles into page DOM
+function ensureAnswerStyles(): void {
+  if (document.getElementById(ANSWER_STYLES_ID)) return;
+  const style = document.createElement('style');
+  style.id = ANSWER_STYLES_ID;
+  style.textContent = answerBoxStyles;
+  (document.head || document.documentElement).appendChild(style);
+}
 
 let isShowing = false;
 const originalSvgContents: Record<number, string> = {};
@@ -29,8 +34,7 @@ let svgIndex = 0;
 
 function createInfoBox(html: string, isWarning = false): HTMLDivElement {
   const div = document.createElement('div');
-  div.className = 'edu-hack';
-  div.style.cssText = isWarning ? STYLES.warningBox : STYLES.infoBox;
+  div.className = `edu-hack edu-hack-info${isWarning ? ' warning' : ''}`;
   div.innerHTML = html;
   return div;
 }
@@ -54,7 +58,7 @@ function parseSvgExpression(expr: string): string[] {
 function warnIfSecured(question: QuestionWidget): void {
   if (question.props.isSecured) {
     question.element[0]?.before(
-      createInfoBox('⚠️ Secured question - answers may be incorrect', true)
+      createInfoBox('Secured question - answers may be incorrect', true)
     );
   }
 }
@@ -85,7 +89,7 @@ function checkNoAnswer(question: QuestionWidget): boolean {
 
   if (!answers || (Array.isArray(answers) && answers.length === 0)) {
     question.element[0]?.before(
-      createInfoBox('❌ No answer found for this question', true)
+      createInfoBox('No answer found for this question', true)
     );
     return true;
   }
@@ -105,7 +109,6 @@ function handleAbcd(q: QuestionWidget): void {
     container
       ?.querySelectorAll<HTMLElement>(`[data-answerid="${id}"]`)
       .forEach((el) => {
-        el.style.border = STYLES.highlight;
         el.classList.add('edu-hack', 'border');
       });
   });
@@ -116,7 +119,7 @@ function handleInput(q: QuestionWidget): void {
   warnIfSecured(q);
 
   const text = q.props.correctAnswers!.map((a) => `"${a}"`).join(' OR ');
-  q.element[0]?.before(createInfoBox(`📝 Answer: ${text}`));
+  q.element[0]?.before(createInfoBox(`<strong>Answer:</strong> ${text}`));
 }
 
 function handleOrdering(q: QuestionWidget): void {
@@ -125,9 +128,7 @@ function handleOrdering(q: QuestionWidget): void {
 
   const items = q.props.answers!.map((a) => `<li>${a.text}</li>`).join('');
   q.element[0]?.before(
-    createInfoBox(
-      `📋 Correct order:<ol style="margin:8px 0 0 20px">${items}</ol>`
-    )
+    createInfoBox(`<strong>Correct order:</strong><ol>${items}</ol>`)
   );
 }
 
@@ -137,11 +138,13 @@ function handleGroups(q: QuestionWidget): void {
   const html = q.props
     .groups!.map((g) => {
       const items = g.items.map((i) => `<li>${i.text}</li>`).join('');
-      return `<div style="margin-top:8px"><b>${g.title}</b><ol style="margin:4px 0 0 20px">${items}</ol></div>`;
+      return `<div><strong>${g.title}</strong><ol>${items}</ol></div>`;
     })
     .join('');
 
-  q.element[0]?.before(createInfoBox(`📦 Correct grouping:${html}`));
+  q.element[0]?.before(
+    createInfoBox(`<strong>Correct grouping:</strong>${html}`)
+  );
 }
 
 function handleConnect(q: QuestionWidget): void {
@@ -149,13 +152,10 @@ function handleConnect(q: QuestionWidget): void {
 
   const items = q.props.pairs!.map((p) => `<li>${p.l} ↔ ${p.r}</li>`).join('');
   q.element[0]?.before(
-    createInfoBox(
-      `🔗 Correct pairs:<ol style="margin:8px 0 0 20px">${items}</ol>`
-    )
+    createInfoBox(`<strong>Correct pairs:</strong><ol>${items}</ol>`)
   );
 
   if (q.element[0]) {
-    q.element[0].style.border = STYLES.highlight;
     q.element[0].classList.add('edu-hack', 'border');
   }
 }
@@ -229,9 +229,7 @@ function handleSvg(q: QuestionWidget): void {
 
   const items = answers.map((a) => `<li>${a}</li>`).join('');
   q.element[0]?.before(
-    createInfoBox(
-      `🎯 Correct answers:<ol style="margin:8px 0 0 20px">${items}</ol>`
-    )
+    createInfoBox(`<strong>Correct answers:</strong><ol>${items}</ol>`)
   );
 }
 
@@ -247,9 +245,9 @@ function handleElaboration(q: QuestionWidget): void {
 
   const uploadEnabled = enableUpload === 'enabled';
   const info = [
-    '✍️ Essay/Elaboration question',
+    '<strong>Essay/Elaboration question</strong>',
     `Max score: ${maxScore ?? 'N/A'}`,
-    uploadEnabled ? '📎 File upload enabled' : null,
+    uploadEnabled ? 'File upload enabled' : null,
     '(No correct answer - manually graded)',
   ]
     .filter(Boolean)
@@ -273,6 +271,8 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
 };
 
 function showAnswers(): void {
+  ensureAnswerStyles();
+
   if (!window.materialObj) {
     logger.error('materialObj not found');
     showToast(
@@ -307,7 +307,6 @@ function hideAnswers(): void {
     .querySelectorAll('.edu-hack:not(.border)')
     .forEach((el) => el.remove());
   document.querySelectorAll('.edu-hack.border').forEach((el) => {
-    (el as HTMLElement).style.border = '';
     el.classList.remove('edu-hack', 'border');
   });
   document.querySelectorAll('[data-keep-index]').forEach((el) => {
@@ -337,50 +336,11 @@ function createToggleButton(): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.innerHTML = '👁️';
   btn.title = 'Toggle Answers';
-  // Use viewport-relative units to stay consistent regardless of page zoom
-  btn.style.cssText = `
-    position: fixed;
-    bottom: max(2vmin, 16px);
-    right: max(2vmin, 16px);
-    z-index: 999999;
-    width: max(5.5vmin, 48px);
-    height: max(5.5vmin, 48px);
-    border-radius: 50%;
-    border: none;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: white;
-    font-size: max(2.4vmin, 20px);
-    cursor: pointer;
-    box-shadow:
-      0 max(0.4vmin, 3px) max(1.2vmin, 10px) rgba(37, 99, 235, 0.4),
-      0 max(0.2vmin, 2px) max(0.4vmin, 4px) rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  `;
+  btn.className = 'edupage-revealer-btn';
 
   btn.addEventListener('click', () => {
     toggleAnswers();
     updateButtonState();
-  });
-
-  btn.addEventListener('mouseenter', () => {
-    btn.style.transform = 'scale(1.1) translateY(-2px)';
-    btn.style.boxShadow = `
-      0 max(0.6vmin, 5px) max(1.8vmin, 15px) rgba(37, 99, 235, 0.5),
-      0 max(0.3vmin, 3px) max(0.6vmin, 6px) rgba(0, 0, 0, 0.15)
-    `;
-  });
-
-  btn.addEventListener('mouseleave', () => {
-    btn.style.transform = 'scale(1)';
-    btn.style.boxShadow = `
-      0 max(0.4vmin, 3px) max(1.2vmin, 10px) rgba(37, 99, 235, 0.4),
-      0 max(0.2vmin, 2px) max(0.4vmin, 4px) rgba(0, 0, 0, 0.1)
-    `;
   });
 
   return btn;
@@ -389,12 +349,7 @@ function createToggleButton(): HTMLButtonElement {
 function updateButtonState(): void {
   if (!toggleBtn) return;
   toggleBtn.innerHTML = isShowing ? '🙈' : '👁️';
-  toggleBtn.style.background = isShowing
-    ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-    : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-  toggleBtn.style.boxShadow = isShowing
-    ? `0 max(0.4vmin, 3px) max(1.2vmin, 10px) rgba(22, 163, 74, 0.4), 0 max(0.2vmin, 2px) max(0.4vmin, 4px) rgba(0, 0, 0, 0.1)`
-    : `0 max(0.4vmin, 3px) max(1.2vmin, 10px) rgba(37, 99, 235, 0.4), 0 max(0.2vmin, 2px) max(0.4vmin, 4px) rgba(0, 0, 0, 0.1)`;
+  toggleBtn.classList.toggle('active', isShowing);
   toggleBtn.title = isShowing ? 'Hide Answers' : 'Show Answers';
 }
 
@@ -408,15 +363,17 @@ function ensureButtonContainer(): HTMLElement {
     // Create new container with Shadow DOM
     container = document.createElement('div');
     container.id = CONTAINER_ID;
-    container.style.cssText =
-      'position:fixed;top:0;left:0;width:0;height:0;z-index:999999;pointer-events:none;';
 
     // Attach shadow root
     shadowRoot = container.attachShadow({ mode: 'closed' });
 
+    // Inject styles into shadow DOM
+    const style = document.createElement('style');
+    style.textContent = revealerStyles;
+    shadowRoot.appendChild(style);
+
     // Create and add button
     toggleBtn = createToggleButton();
-    toggleBtn.style.pointerEvents = 'auto';
     shadowRoot.appendChild(toggleBtn);
 
     // Append to documentElement (html) not body - more stable

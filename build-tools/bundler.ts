@@ -17,4 +17,7 @@ await Bun.build({
     whitespace: false,
     syntax: false,
   },
+  loader: {
+    '.css': 'text',
+  },
 });

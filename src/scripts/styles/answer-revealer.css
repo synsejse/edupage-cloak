@@ -1,0 +1,61 @@
+/* Answer Revealer Toggle Button Styles (Shadow DOM) */
+
+/* Toggle Button */
+.edupage-revealer-btn {
+  position: fixed;
+  bottom: max(2vmin, 16px);
+  right: max(2vmin, 16px);
+  z-index: 999999;
+  width: max(5.5vmin, 48px);
+  height: max(5.5vmin, 48px);
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-size: max(2.4vmin, 20px);
+  cursor: pointer;
+  box-shadow:
+    0 4px 14px rgba(37, 99, 235, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    background 0.3s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.edupage-revealer-btn:hover {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(37, 99, 235, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+.edupage-revealer-btn:active {
+  transform: scale(1.02);
+}
+
+.edupage-revealer-btn.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow:
+    0 4px 14px rgba(22, 163, 74, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edupage-revealer-btn.active:hover {
+  box-shadow:
+    0 6px 20px rgba(22, 163, 74, 0.5),
+    0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .edupage-revealer-btn {
+    transition: none;
+  }
+}

@@ -3,6 +3,8 @@
 // Uses a global singleton pattern to prevent duplicate declarations when
 // multiple scripts import this module in the same execution context (MAIN world)
 
+import toastStyles from '../styles/toast.css';
+
 const TOAST_GLOBAL_KEY = '__edupage_cloak_toast__';
 
 interface ToastAPI {
@@ -41,233 +43,7 @@ function createToastManager(): ToastAPI {
     // Add styles to document
     const style = document.createElement('style');
     style.id = 'toast-styles';
-    // Use viewport-relative units to stay consistent regardless of page zoom
-    // 1vmin = 1% of the smaller viewport dimension
-    style.textContent = `
-      #edupage-cloak-toast-container {
-        position: fixed;
-        top: max(1.5vmin, 10px);
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 999999;
-        pointer-events: none;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: max(1vmin, 8px);
-        width: min(90vw, 420px);
-      }
-
-      #edupage-cloak-toast-container.bottom {
-        top: auto;
-        bottom: max(1.5vmin, 10px);
-      }
-
-      .edupage-toast {
-        display: flex;
-        align-items: flex-start;
-        gap: max(1.2vmin, 10px);
-        padding: max(1.4vmin, 12px) max(1.6vmin, 14px);
-        border-radius: max(1.2vmin, 10px);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-        font-size: max(1.4vmin, 13px);
-        font-weight: 500;
-        line-height: 1.4;
-        box-shadow:
-          0 max(0.4vmin, 3px) max(0.8vmin, 6px) -1px rgba(0, 0, 0, 0.15),
-          0 max(0.2vmin, 2px) max(0.4vmin, 4px) -2px rgba(0, 0, 0, 0.1),
-          0 0 0 1px rgba(0, 0, 0, 0.05);
-        pointer-events: auto;
-        cursor: pointer;
-        word-wrap: break-word;
-        box-sizing: border-box;
-        width: 100%;
-        animation: toastSlideIn 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
-        position: relative;
-        overflow: hidden;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      .edupage-toast:hover {
-        transform: translateY(max(-0.2vmin, -2px)) scale(1.01);
-        box-shadow:
-          0 max(1vmin, 8px) max(1.5vmin, 12px) -3px rgba(0, 0, 0, 0.15),
-          0 max(0.4vmin, 4px) max(0.6vmin, 6px) -4px rgba(0, 0, 0, 0.1),
-          0 0 0 1px rgba(0, 0, 0, 0.05);
-      }
-
-      .edupage-toast:hover .edupage-toast-progress {
-        animation-play-state: paused;
-      }
-
-      .edupage-toast-icon {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: max(2.4vmin, 22px);
-        height: max(2.4vmin, 22px);
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-      }
-
-      .edupage-toast-icon svg {
-        width: max(1.6vmin, 14px);
-        height: max(1.6vmin, 14px);
-      }
-
-      .edupage-toast-content {
-        flex: 1;
-        min-width: 0;
-        padding-top: max(0.2vmin, 2px);
-      }
-
-      .edupage-toast-message {
-        margin: 0;
-        word-break: break-word;
-      }
-
-      .edupage-toast-close {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: max(2vmin, 18px);
-        height: max(2vmin, 18px);
-        border: none;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
-        cursor: pointer;
-        opacity: 0.7;
-        transition: opacity 0.2s, background 0.2s, transform 0.2s;
-        color: inherit;
-        padding: 0;
-        margin-top: max(0.2vmin, 2px);
-      }
-
-      .edupage-toast-close:hover {
-        opacity: 1;
-        background: rgba(255, 255, 255, 0.25);
-        transform: scale(1.15);
-      }
-
-      .edupage-toast-close svg {
-        width: max(1.2vmin, 11px);
-        height: max(1.2vmin, 11px);
-      }
-
-      .edupage-toast-progress {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: max(0.3vmin, 3px);
-        background: rgba(255, 255, 255, 0.4);
-        border-radius: 0 0 max(1.2vmin, 10px) max(1.2vmin, 10px);
-        transform-origin: left;
-      }
-
-      .edupage-toast.removing {
-        animation: toastSlideOut 0.3s cubic-bezier(0.06, 0.71, 0.55, 1) forwards;
-      }
-
-      /* Type-specific styles */
-      .edupage-toast.info {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: #fff;
-      }
-
-      .edupage-toast.warn {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: #fff;
-      }
-
-      .edupage-toast.error {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        color: #fff;
-      }
-
-      .edupage-toast.success {
-        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-        color: #fff;
-      }
-
-      .edupage-toast.debug {
-        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
-        color: #fff;
-      }
-
-      @keyframes toastSlideIn {
-        0% {
-          opacity: 0;
-          transform: translateY(-20px) scale(0.95);
-        }
-        100% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-
-      @keyframes toastSlideOut {
-        0% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-          max-height: 150px;
-          margin-bottom: 0;
-        }
-        100% {
-          opacity: 0;
-          transform: translateY(-10px) scale(0.95);
-          max-height: 0;
-          margin-bottom: max(-1vmin, -8px);
-          padding-top: 0;
-          padding-bottom: 0;
-        }
-      }
-
-      @keyframes progressShrink {
-        from {
-          transform: scaleX(1);
-        }
-        to {
-          transform: scaleX(0);
-        }
-      }
-
-      /* Dark mode support */
-      @media (prefers-color-scheme: dark) {
-        .edupage-toast {
-          box-shadow:
-            0 max(0.4vmin, 3px) max(0.8vmin, 6px) -1px rgba(0, 0, 0, 0.35),
-            0 max(0.2vmin, 2px) max(0.4vmin, 4px) -2px rgba(0, 0, 0, 0.25),
-            0 0 0 1px rgba(255, 255, 255, 0.05);
-        }
-
-        .edupage-toast:hover {
-          box-shadow:
-            0 max(1vmin, 8px) max(1.5vmin, 12px) -3px rgba(0, 0, 0, 0.45),
-            0 max(0.4vmin, 4px) max(0.6vmin, 6px) -4px rgba(0, 0, 0, 0.35),
-            0 0 0 1px rgba(255, 255, 255, 0.05);
-        }
-      }
-
-      /* Reduced motion */
-      @media (prefers-reduced-motion: reduce) {
-        .edupage-toast {
-          animation: none;
-          opacity: 1;
-        }
-        .edupage-toast.removing {
-          animation: none;
-          display: none;
-        }
-        .edupage-toast-progress {
-          animation: none !important;
-        }
-      }
-    `;
+    style.textContent = toastStyles;
     (document.head || document.documentElement).appendChild(style);
 
     initialized = true;
@@ -356,8 +132,9 @@ function createToastManager(): ToastAPI {
     toastEl.appendChild(closeEl);
 
     // Add progress bar for timed toasts
+    let progressEl: HTMLElement | null = null;
     if (duration > 0) {
-      const progressEl = document.createElement('div');
+      progressEl = document.createElement('div');
       progressEl.className = 'edupage-toast-progress';
       progressEl.style.animation = `progressShrink ${duration}ms linear forwards`;
       toastEl.appendChild(progressEl);
@@ -371,11 +148,67 @@ function createToastManager(): ToastAPI {
     // Add to container (new toasts go to the bottom)
     toastContainer.appendChild(toastEl);
 
-    // Auto dismiss
+    // Auto dismiss with pause on hover
     if (duration > 0) {
-      setTimeout(() => {
-        dismiss(toastEl);
-      }, duration);
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let remainingTime = duration;
+      let startTime = Date.now();
+      let currentProgress = 1; // 1 = full bar, 0 = empty
+
+      const startTimer = () => {
+        startTime = Date.now();
+        timeoutId = setTimeout(() => {
+          dismiss(toastEl);
+        }, remainingTime);
+      };
+
+      const pauseTimer = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+          const elapsed = Date.now() - startTime;
+          remainingTime -= elapsed;
+          if (remainingTime < 0) remainingTime = 0;
+          // Calculate current progress (how much of the bar is left)
+          currentProgress = remainingTime / duration;
+        }
+        // Pause progress bar by setting a static transform
+        if (progressEl) {
+          progressEl.style.animation = 'none';
+          progressEl.style.transform = `scaleX(${currentProgress})`;
+        }
+      };
+
+      const resumeTimer = () => {
+        if (remainingTime > 0 && progressEl) {
+          // Create a custom animation that starts from current progress
+          const animationName = `progressResume_${id}`;
+          const keyframes = `
+            @keyframes ${animationName} {
+              from { transform: scaleX(${currentProgress}); }
+              to { transform: scaleX(0); }
+            }
+          `;
+          // Inject keyframes if not already present
+          let styleEl = document.getElementById(`${animationName}-style`);
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = `${animationName}-style`;
+            document.head.appendChild(styleEl);
+          }
+          styleEl.textContent = keyframes;
+
+          // Apply the animation
+          progressEl.style.animation = `${animationName} ${remainingTime}ms linear forwards`;
+          startTimer();
+        }
+      };
+
+      toastEl.addEventListener('mouseenter', pauseTimer);
+      toastEl.addEventListener('mouseleave', resumeTimer);
+
+      // Start initial timer
+      startTimer();
     }
   }
 
