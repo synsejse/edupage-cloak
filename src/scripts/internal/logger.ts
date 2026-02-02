@@ -1,6 +1,8 @@
 // Logger - Simple singleton logger with styled console output
 
-const LOGGER_GLOBAL_KEY = '__edupage_cloak_logger__';
+import { CONFIG } from '../config';
+
+const LOGGER_GLOBAL_KEY = CONFIG.GLOBAL_KEYS.LOGGER;
 
 type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 
@@ -47,6 +49,9 @@ const getConsoleMethod = (method: keyof Console) =>
   console.log.bind(console);
 
 function print(level: LogLevel, name: string | undefined, msg: string): void {
+  // Skip debug messages unless debug mode is enabled
+  if (level === 'debug' && !CONFIG.DEBUG_MODE) return;
+
   const tag = `[${name ?? 'log'}]`;
   const timestamp = new Date().toISOString();
 

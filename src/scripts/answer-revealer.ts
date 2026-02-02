@@ -24,6 +24,13 @@ function showToast(
   window.toast?.[type]?.(msg, duration);
 }
 
+// Get the first DOM element from a widget's jQuery element
+function getElement(widget: QuestionWidget): HTMLElement | null {
+  // widget.element is a jQuery object, access first element with [0]
+  if (!widget.element) return null;
+  return widget.element[0] ?? null;
+}
+
 // Inject answer box styles into page DOM
 function ensureStyles(): void {
   if (document.getElementById(STYLES_ID)) return;
@@ -60,47 +67,59 @@ function parseSvgExpression(expr: string): string[] {
 }
 
 // Show warning for secured questions
-function warnIfSecured(q: QuestionWidget): void {
-  if (q.props.isSecured) {
-    q.element[0]?.before(
+function warnIfSecured(widget: QuestionWidget): void {
+  if (widget.props.isSecured) {
+    const el = getElement(widget);
+    el?.before(
       createInfoBox('Secured question - answers may be incorrect', true)
     );
   }
 }
 
 // Check if question has no answer
-function checkNoAnswer(q: QuestionWidget): boolean {
-  const widgetClass = q.getWidgetClass();
+function checkNoAnswer(widget: QuestionWidget): boolean {
+  const widgetClass = widget.getWidgetClass();
 
   const answerMap: Record<string, unknown> = {
-    ConnectAnswerETestWidget: q.props.pairs,
-    GroupsAnswerETestWidget: q.props.groups,
-    OrderingAnswerETestWidget: q.props.answers,
-    MapAnswerETestWidget: q.props.points,
-    SvgAnswerETestWidget: q.props.correctExpression,
+    ConnectAnswerETestWidget: widget.props.pairs,
+    GroupsAnswerETestWidget: widget.props.groups,
+    OrderingAnswerETestWidget: widget.props.answers,
+    MapAnswerETestWidget: widget.props.points,
+    SvgAnswerETestWidget: widget.props.correctExpression,
   };
 
-  const answers = answerMap[widgetClass] ?? q.props.correctAnswers;
+  const answers = answerMap[widgetClass] ?? widget.props.correctAnswers;
 
   if (!answers || (Array.isArray(answers) && answers.length === 0)) {
-    q.element[0]?.before(
-      createInfoBox('No answer found for this question', true)
-    );
+    const el = getElement(widget);
+    el?.before(createInfoBox('No answer found for this question', true));
     return true;
   }
 
   return false;
 }
 
-// Question handlers
-const handlers: Record<string, (q: QuestionWidget) => void> = {
-  AbcdAnswerETestWidget(q) {
-    const answers = q.props.correctAnswers;
-    if (!answers) return;
+// Escape HTML to prevent XSS
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
 
-    warnIfSecured(q);
+// Question handlers - keyed by WidgetClassName
+const handlers: Partial<
+  Record<WidgetClassName, (widget: QuestionWidget) => void>
+> = {
+  AbcdAnswerETestWidget(widget) {
+    const answers = widget.props.correctAnswers;
+    if (!answers || answers.length === 0) {
+      checkNoAnswer(widget);
+      return;
+    }
 
-    const container = document.querySelector(`[data-wid="${q.id}"]`);
+    warnIfSecured(widget);
+
+    const container = document.querySelector(`[data-wid="${widget.id}"]`);
     for (const id of answers) {
       container
         ?.querySelectorAll<HTMLElement>(`[data-answerid="${id}"]`)
@@ -108,56 +127,91 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
     }
   },
 
-  InputAnswerETestWidget(q) {
-    if (checkNoAnswer(q)) return;
-    warnIfSecured(q);
+  InputAnswerETestWidget(widget) {
+    if (checkNoAnswer(widget)) return;
+    warnIfSecured(widget);
 
-    const text = q.props.correctAnswers!.map((a) => `"${a}"`).join(' OR ');
-    q.element[0]?.before(createInfoBox(`<strong>Answer:</strong> ${text}`));
+    const correctAnswers = widget.props.correctAnswers ?? [];
+    const text = correctAnswers.map((a) => `"${escapeHtml(a)}"`).join(' OR ');
+
+    const el = getElement(widget);
+    el?.before(createInfoBox(`<strong>Answer:</strong> ${text}`));
+
+    // Also show incorrect answers if present (for drag-drop style inputs)
+    const incorrectAnswers = widget.props.incorrectAnswers;
+    if (incorrectAnswers && incorrectAnswers.length > 0) {
+      logger.debug(
+        `InputAnswer has ${incorrectAnswers.length} distractor answers`
+      );
+    }
   },
 
-  OrderingAnswerETestWidget(q) {
-    if (checkNoAnswer(q)) return;
-    warnIfSecured(q);
+  OrderingAnswerETestWidget(widget) {
+    if (checkNoAnswer(widget)) return;
+    warnIfSecured(widget);
 
-    const items = q.props.answers!.map((a) => `<li>${a.text}</li>`).join('');
-    q.element[0]?.before(
+    const answers = widget.props.answers ?? [];
+    const items = answers.map((a) => `<li>${escapeHtml(a.text)}</li>`).join('');
+
+    const el = getElement(widget);
+    el?.before(
       createInfoBox(`<strong>Correct order:</strong><ol>${items}</ol>`)
     );
   },
 
-  GroupsAnswerETestWidget(q) {
-    warnIfSecured(q);
+  GroupsAnswerETestWidget(widget) {
+    const groups = widget.props.groups;
+    if (!groups || groups.length === 0) {
+      checkNoAnswer(widget);
+      return;
+    }
 
-    const html = q.props
-      .groups!.map((g) => {
-        const items = g.items.map((i) => `<li>${i.text}</li>`).join('');
-        return `<div><strong>${g.title}</strong><ol>${items}</ol></div>`;
+    warnIfSecured(widget);
+
+    const html = groups
+      .map((g) => {
+        const items = g.items
+          .map((i) => `<li>${escapeHtml(i.text)}</li>`)
+          .join('');
+        return `<div><strong>${escapeHtml(g.title)}</strong><ol>${items}</ol></div>`;
       })
       .join('');
 
-    q.element[0]?.before(
-      createInfoBox(`<strong>Correct grouping:</strong>${html}`)
-    );
+    const el = getElement(widget);
+    el?.before(createInfoBox(`<strong>Correct grouping:</strong>${html}`));
   },
 
-  ConnectAnswerETestWidget(q) {
-    warnIfSecured(q);
+  ConnectAnswerETestWidget(widget) {
+    const pairs = widget.props.pairs;
+    if (!pairs || pairs.length === 0) {
+      checkNoAnswer(widget);
+      return;
+    }
 
-    const items = q.props
-      .pairs!.map((p) => `<li>${p.l} ↔ ${p.r}</li>`)
+    warnIfSecured(widget);
+
+    const items = pairs
+      .map((p) => `<li>${escapeHtml(p.l)} ↔ ${escapeHtml(p.r)}</li>`)
       .join('');
-    q.element[0]?.before(
+
+    const el = getElement(widget);
+    el?.before(
       createInfoBox(`<strong>Correct pairs:</strong><ol>${items}</ol>`)
     );
 
-    q.element[0]?.classList.add('edu-hack', 'border');
+    el?.classList.add('edu-hack', 'border');
   },
 
-  MapAnswerETestWidget(q) {
-    warnIfSecured(q);
+  MapAnswerETestWidget(widget) {
+    const points = widget.props.points;
+    if (!points || points.length === 0) {
+      checkNoAnswer(widget);
+      return;
+    }
 
-    for (const p of q.props.points!) {
+    warnIfSecured(widget);
+
+    for (const p of points) {
       const answer = document.querySelector<HTMLElement>(
         `[data-id="${p.pointid}"]`
       );
@@ -177,15 +231,35 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
       );
       answer.classList.add('edu-hack');
     }
+
+    // Show point mapping info
+    const el = getElement(widget);
+    const info = points
+      .filter((p) => p.text)
+      .map((p) => `<li>${escapeHtml(p.text ?? '')}</li>`)
+      .join('');
+
+    if (info) {
+      el?.before(createInfoBox(`<strong>Map points:</strong><ol>${info}</ol>`));
+    }
   },
 
-  SvgAnswerETestWidget(q) {
-    warnIfSecured(q);
+  SvgAnswerETestWidget(widget) {
+    const expr = widget.props.correctExpression;
+    if (!expr) {
+      checkNoAnswer(widget);
+      return;
+    }
 
-    const answers = parseSvgExpression(q.props.correctExpression!);
+    warnIfSecured(widget);
 
-    for (const key of Object.keys(q.answersExtended || {})) {
-      const el = document.querySelector<SVGElement>(`#wq${q.id}---${key}`);
+    const answers = parseSvgExpression(expr);
+    const answersExtended = widget.answersExtended as
+      | SvgAnswerExtended
+      | undefined;
+
+    for (const key of Object.keys(answersExtended ?? {})) {
+      const el = document.querySelector<SVGElement>(`#wq${widget.id}---${key}`);
       if (!el) continue;
 
       const label = key.replace('g_', '');
@@ -228,19 +302,17 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
       }
     }
 
-    const items = answers.map((a) => `<li>${a}</li>`).join('');
-    q.element[0]?.before(
+    const items = answers.map((a) => `<li>${escapeHtml(a)}</li>`).join('');
+    const el = getElement(widget);
+    el?.before(
       createInfoBox(`<strong>Correct answers:</strong><ol>${items}</ol>`)
     );
   },
 
-  ElaborationETestWidget(q) {
-    warnIfSecured(q);
+  ElaborationETestWidget(widget) {
+    warnIfSecured(widget);
 
-    const { maxScore, enableUpload } = q.props as {
-      maxScore?: number;
-      enableUpload?: string;
-    };
+    const { maxScore, enableUpload } = widget.props;
 
     const uploadEnabled = enableUpload === 'enabled';
     const info = [
@@ -252,8 +324,35 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
       .filter(Boolean)
       .join('<br>');
 
-    q.element[0]?.before(createInfoBox(info));
+    const el = getElement(widget);
+    el?.before(createInfoBox(info));
     logger.debug(`Elaboration: maxScore=${maxScore}, upload=${uploadEnabled}`);
+  },
+
+  // Handle image-based answer widgets
+  ImageAnswerETestWidget(widget) {
+    warnIfSecured(widget);
+
+    const el = getElement(widget);
+    el?.before(
+      createInfoBox(
+        '<strong>Image selection question</strong><br>(Visual answer required)',
+        false
+      )
+    );
+  },
+
+  // Handle iframe-based widgets (external content)
+  IframeAnswerETestWidget(widget) {
+    warnIfSecured(widget);
+
+    const el = getElement(widget);
+    el?.before(
+      createInfoBox(
+        '<strong>External content question</strong><br>(Answer in embedded frame)',
+        false
+      )
+    );
   },
 };
 
@@ -261,7 +360,8 @@ const handlers: Record<string, (q: QuestionWidget) => void> = {
 function showAnswers(): void {
   ensureStyles();
 
-  if (!window.materialObj) {
+  const materialObj = window.materialObj;
+  if (!materialObj) {
     logger.error('materialObj not found');
     showToast(
       'error',
@@ -271,24 +371,51 @@ function showAnswers(): void {
     return;
   }
 
-  const widgets = (window.materialObj as MaterialObj).getAllAnswerWidgets();
+  // Check if test is secured
+  if (materialObj.isSecured || materialObj.isSecuredCards) {
+    logger.warn('Test is secured - some answers may not be available');
+    showToast('error', 'Test is secured - answers may be hidden', 5000);
+  }
 
-  for (const q of widgets) {
+  const widgets = materialObj.getAllAnswerWidgets();
+  logger.info(`Processing ${widgets.length} answer widgets`);
+
+  let processed = 0;
+  let skipped = 0;
+
+  for (const widget of widgets) {
     try {
-      const handler = handlers[q.getWidgetClass()];
+      const widgetClass = widget.getWidgetClass();
+      const handler = handlers[widgetClass];
+
       if (handler) {
-        handler(q);
+        handler(widget);
+        processed++;
       } else {
-        logger.warn(`Unknown widget: ${q.getWidgetClass()}`);
+        // Try to handle unknown widget types gracefully
+        logger.warn(`Unknown widget type: ${widgetClass}`);
+        skipped++;
+
+        // Show generic info for unknown types
+        const el = getElement(widget);
+        if (el) {
+          el.before(
+            createInfoBox(
+              `<em>Unknown question type: ${escapeHtml(widgetClass)}</em>`,
+              true
+            )
+          );
+        }
       }
     } catch (e) {
-      logger.error(`Error processing widget: ${e}`);
+      logger.error(`Error processing widget ${widget.id}: ${e}`);
+      skipped++;
     }
   }
 
   isShowing = true;
-  logger.info('Answers shown');
-  showToast('success', 'Answers revealed', 3000);
+  logger.info(`Answers shown: ${processed} processed, ${skipped} skipped`);
+  showToast('success', `Revealed ${processed} answers`, 3000);
 }
 
 function hideAnswers(): void {
@@ -310,6 +437,10 @@ function hideAnswers(): void {
     }
     el.removeAttribute('data-keep-index');
   });
+
+  // Clear SVG originals cache
+  svgOriginals = {};
+  svgIndex = 0;
 
   isShowing = false;
   logger.info('Answers hidden');

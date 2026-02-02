@@ -70,7 +70,8 @@ import { createLogger, toast } from './internal';
         .fetch(this._url, init)
         .then(async (response) => {
           const text = await response.text();
-          this._interceptedResponse = text;
+          // Apply the modifier function to transform the response
+          this._interceptedResponse = await rule.modifier(text, this._url);
           this._interceptedStatus = response.status;
           this._interceptedStatusText = response.statusText;
 

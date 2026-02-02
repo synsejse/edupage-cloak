@@ -1,5 +1,6 @@
 // Inject Script - Block EduPage tracking functionality
 import { createLogger, toast } from './internal';
+import { CONFIG } from './config';
 
 (function () {
   const logger = createLogger('inject');
@@ -31,69 +32,64 @@ import { createLogger, toast } from './internal';
     'keydown.etestplayeral',
   ]);
 
+  const TOTAL_TRACKABLE_EVENTS = BLOCKED_EVENTS.size;
+
   // Block tracking statistics
   const blockStats = {
-    blocked: new Map<string, number>(),
-    startTime: 0,
-    duration: 15000, // 15 second monitoring window
-    timeout: null as ReturnType<typeof setTimeout> | null,
+    blockedEvents: new Set<string>(),
+    totalBlocks: 0,
   };
 
-  function recordBlock(event: string): void {
-    blockStats.blocked.set(event, (blockStats.blocked.get(event) || 0) + 1);
-  }
+  function reportBlock(events: string[]): void {
+    let newEventsBlocked = false;
 
-  function isTracking(): boolean {
-    return Date.now() - blockStats.startTime < blockStats.duration;
-  }
-
-  function generateBlockReport(): void {
-    const uniqueEvents = blockStats.blocked.size;
-    const totalBlocked = [...blockStats.blocked.values()].reduce(
-      (a, b) => a + b,
-      0
-    );
-
-    if (totalBlocked === 0) {
-      logger.info('No tracking events detected during monitoring period');
-      toast.info('No tracking events detected', 4000);
-      return;
+    for (const event of events) {
+      blockStats.totalBlocks++;
+      if (!blockStats.blockedEvents.has(event)) {
+        blockStats.blockedEvents.add(event);
+        newEventsBlocked = true;
+      }
     }
 
-    const events = [...blockStats.blocked.keys()].join(', ');
-    logger.info(
-      `Blocked ${totalBlocked} events (${uniqueEvents} unique): ${events}`
-    );
-    toast.success(`All tracking blocked: ${totalBlocked} events`, 5000);
-  }
+    const uniqueBlocked = blockStats.blockedEvents.size;
 
-  function startBlockTracking(): void {
-    blockStats.startTime = Date.now();
-    blockStats.blocked.clear();
-    blockStats.timeout = setTimeout(generateBlockReport, blockStats.duration);
+    // Log every block
     logger.info(
-      `Block tracking started (${blockStats.duration / 1000}s window)`
+      `Blocked: ${events.join(', ')} (${uniqueBlocked}/${TOTAL_TRACKABLE_EVENTS} event types)`
     );
+
+    // Show toast when new event types are blocked
+    if (newEventsBlocked) {
+      toast.success(
+        `Tracking blocked: ${uniqueBlocked}/${TOTAL_TRACKABLE_EVENTS} event types`,
+        3000
+      );
+    }
   }
 
   // jQuery event blocker
-  function patchJQuery($: { fn: { on: Function } }): void {
+  function patchJQuery($: JQueryStatic): void {
     const originalOn = $.fn.on;
 
-    $.fn.on = function (events: string, ...args: unknown[]) {
+    // Use type assertion to override the strict jQuery types
+    // We need to intercept all .on() calls to block tracking events
+    ($.fn as { on: Function }).on = function (
+      this: JQuery,
+      events: unknown,
+      ...args: unknown[]
+    ) {
       if (typeof events === 'string') {
         const eventList = events.split(/\s+/);
         const blocked = eventList.filter((e) => BLOCKED_EVENTS.has(e));
 
         if (blocked.length > 0) {
-          logger.info(`Blocked: ${blocked.join(', ')}`);
-          if (isTracking()) {
-            blocked.forEach(recordBlock);
-          }
+          reportBlock(blocked);
           return this;
         }
       }
-      return originalOn.apply(this, [events, ...args]);
+      return originalOn.apply(this, [events, ...args] as Parameters<
+        typeof originalOn
+      >);
     };
   }
 
@@ -173,14 +169,45 @@ import { createLogger, toast } from './internal';
     toast.info('JSON interceptor ready', 3000);
   }
 
+  // Check etestPlayer.js version and warn if changed
+  function checkEtestPlayerVersion(url: string): void {
+    // Extract version from URL query parameter: ?v=<version>
+    const versionMatch = url.match(/[?&]v=([a-f0-9]+)/i);
+
+    if (!versionMatch) {
+      logger.warn('Could not extract etestPlayer.js version from URL');
+      toast.warn('Could not verify test player version', 5000);
+      return;
+    }
+
+    const detectedVersion = versionMatch[1];
+    logger.info(`etestPlayer.js version: ${detectedVersion}`);
+
+    if (detectedVersion !== CONFIG.KNOWN_ETEST_PLAYER_VERSION) {
+      logger.warn(
+        `Version mismatch! Expected: ${CONFIG.KNOWN_ETEST_PLAYER_VERSION}, Got: ${detectedVersion}`
+      );
+      toast.warn(
+        `⚠️ etestPlayer.js updated (${detectedVersion}) - extension may need update`,
+        0 // Persistent toast
+      );
+    } else {
+      logger.info('etestPlayer.js version verified');
+    }
+  }
+
   // Network interceptor rules
   function setupInterceptorRules(): void {
     window.__interceptorRules = window.__interceptorRules || [];
     window.__interceptorRules.push({
       pattern: /elearning\/pics\/js\/etest\/etestPlayer\.js/,
-      modifier: (content) => {
+      modifier: (content, url) => {
         logger.info('Patching etestPlayer.js: Exposing materialObj');
         toast.success('Test player intercepted', 4000);
+
+        // Check version compatibility
+        checkEtestPlayerVersion(url);
+
         return content.replace(
           'var materialObj = null;',
           'window.materialObj = null;'
@@ -198,20 +225,24 @@ import { createLogger, toast } from './internal';
       if (window.jQuery?.fn?.on) {
         clearInterval(interval);
         patchJQuery(window.jQuery);
-        logger.info('jQuery patched - tracking events blocked');
-        toast.success('Event tracking blocked', 4000);
-        startBlockTracking();
+        logger.info('jQuery patched - tracking event blocker installed');
+        toast.success(
+          `Event blocker ready (monitoring ${TOTAL_TRACKABLE_EVENTS} event types)`,
+          4000
+        );
       }
-    }, 100);
+    }, CONFIG.JQUERY_POLL_INTERVAL);
 
-    // Timeout after 10 seconds
+    // Timeout after configured duration
     setTimeout(() => {
       clearInterval(interval);
       if (!window.jQuery?.fn?.on) {
-        logger.warn('jQuery not detected after 10s');
+        logger.warn(
+          `jQuery not detected after ${CONFIG.JQUERY_WAIT_TIMEOUT / 1000}s`
+        );
         toast.error('jQuery not found - some blocking may not work', 0);
       }
-    }, 10000);
+    }, CONFIG.JQUERY_WAIT_TIMEOUT);
   }
 
   // Execute all patches

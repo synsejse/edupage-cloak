@@ -62,9 +62,7 @@
     0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-.edupage-toast:hover .edupage-toast-progress {
-  animation-play-state: paused;
-}
+/* Progress pause on hover is handled via JS */
 
 /* Icon */
 .edupage-toast-icon {
@@ -138,6 +136,8 @@
   background: rgba(255, 255, 255, 0.4);
   border-radius: 0 0 max(1.2vmin, 10px) max(1.2vmin, 10px);
   transform-origin: left;
+  transform: scaleX(1);
+  /* Transition is set via JS for precise timing control */
 }
 
 /* Removing State */
@@ -199,14 +199,7 @@
   }
 }
 
-@keyframes progressShrink {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
+/* progressShrink keyframe removed - using CSS transitions instead to prevent memory leak */
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
@@ -219,6 +212,6 @@
     display: none;
   }
   .edupage-toast-progress {
-    animation: none !important;
+    transition: none !important;
   }
 }

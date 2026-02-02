@@ -2,8 +2,9 @@
 
 import toastStyles from '../styles/toast.css';
 import { icons } from '../icons';
+import { CONFIG } from '../config';
 
-const TOAST_GLOBAL_KEY = '__edupage_cloak_toast__';
+const TOAST_GLOBAL_KEY = CONFIG.GLOBAL_KEYS.TOAST;
 
 interface ToastAPI {
   info: (msg: string, duration?: number) => void;
@@ -13,18 +14,6 @@ interface ToastAPI {
   debug: (msg: string, duration?: number) => void;
   show: (msg: string, options?: ToastOptions) => void;
   clear: () => void;
-}
-
-// Shared style element for dynamic keyframes
-let dynamicStyleEl: HTMLStyleElement | null = null;
-
-function ensureDynamicStyles(): HTMLStyleElement {
-  if (!dynamicStyleEl || !document.head.contains(dynamicStyleEl)) {
-    dynamicStyleEl = document.createElement('style');
-    dynamicStyleEl.id = 'toast-dynamic-styles';
-    document.head.appendChild(dynamicStyleEl);
-  }
-  return dynamicStyleEl;
 }
 
 function createToastManager(): ToastAPI {
@@ -119,43 +108,43 @@ function createToastManager(): ToastAPI {
       const progressEl = toastEl.querySelector<HTMLElement>(
         '.edupage-toast-progress'
       )!;
-      progressEl.style.animation = `progressShrink ${duration}ms linear forwards`;
 
       let timeoutId: ReturnType<typeof setTimeout>;
       let remainingTime = duration;
       let startTime = Date.now();
-      let progress = 1; // 1 = full, 0 = empty
+      let isPaused = false;
+
+      // Use CSS transition instead of keyframes to avoid memory leak
+      const setupProgressTransition = (time: number) => {
+        progressEl.style.transition = 'none';
+        progressEl.style.transform = `scaleX(${remainingTime / duration})`;
+        // Force reflow to reset transition
+        void progressEl.offsetWidth;
+        progressEl.style.transition = `transform ${time}ms linear`;
+        progressEl.style.transform = 'scaleX(0)';
+      };
 
       const startTimer = () => {
         startTime = Date.now();
+        isPaused = false;
+        setupProgressTransition(remainingTime);
         timeoutId = setTimeout(() => dismiss(toastEl), remainingTime);
       };
 
       const pauseTimer = () => {
+        if (isPaused) return;
+        isPaused = true;
         clearTimeout(timeoutId);
         const elapsed = Date.now() - startTime;
         remainingTime = Math.max(0, remainingTime - elapsed);
-        progress = remainingTime / duration;
 
-        // Freeze progress bar at current position
-        progressEl.style.animation = 'none';
-        progressEl.style.transform = `scaleX(${progress})`;
+        // Freeze progress bar at current position using inline style
+        progressEl.style.transition = 'none';
+        progressEl.style.transform = `scaleX(${remainingTime / duration})`;
       };
 
       const resumeTimer = () => {
-        if (remainingTime <= 0) return;
-
-        // Create resume animation starting from current progress
-        const animName = `progressResume_${id}`;
-        const styleEl = ensureDynamicStyles();
-        styleEl.textContent += `
-          @keyframes ${animName} {
-            from { transform: scaleX(${progress}); }
-            to { transform: scaleX(0); }
-          }
-        `;
-
-        progressEl.style.animation = `${animName} ${remainingTime}ms linear forwards`;
+        if (remainingTime <= 0 || !isPaused) return;
         startTimer();
       };
 
@@ -173,11 +162,16 @@ function createToastManager(): ToastAPI {
   }
 
   return {
-    info: (msg, duration = 3000) => show(msg, { type: 'info', duration }),
-    warn: (msg, duration = 3000) => show(msg, { type: 'warn', duration }),
-    error: (msg, duration = 5000) => show(msg, { type: 'error', duration }),
-    success: (msg, duration = 3000) => show(msg, { type: 'success', duration }),
-    debug: (msg, duration = 2000) => show(msg, { type: 'debug', duration }),
+    info: (msg, duration = CONFIG.TOAST_DURATION.INFO) =>
+      show(msg, { type: 'info', duration }),
+    warn: (msg, duration = CONFIG.TOAST_DURATION.WARN) =>
+      show(msg, { type: 'warn', duration }),
+    error: (msg, duration = CONFIG.TOAST_DURATION.ERROR) =>
+      show(msg, { type: 'error', duration }),
+    success: (msg, duration = CONFIG.TOAST_DURATION.SUCCESS) =>
+      show(msg, { type: 'success', duration }),
+    debug: (msg, duration = CONFIG.TOAST_DURATION.DEBUG) =>
+      show(msg, { type: 'debug', duration }),
     show,
     clear,
   };
