@@ -5,6 +5,7 @@ declare module '*.css' {
 }
 
 // EduPage Types
+// NOTE: "attachements" is intentionally misspelled to match EduPage's source code
 
 /**
  * Widget class names returned by getWidgetClass()
@@ -31,10 +32,12 @@ type WidgetClassName =
 
 /**
  * Answer item used in AbcdAnswerETestWidget
+ * @property attachements - Intentional typo, matches EduPage source code
  */
 interface AnswerItem {
   answerid: string;
   text: string;
+  /** Intentional typo - matches EduPage source code */
   attachements?: Array<{
     src: string;
     name?: string;
@@ -50,7 +53,9 @@ interface PairItem {
   r_itemid?: string;
   l: string;
   r: string;
+  /** Intentional typo - matches EduPage source code */
   l_attachements?: unknown[];
+  /** Intentional typo - matches EduPage source code */
   r_attachements?: unknown[];
 }
 
@@ -62,6 +67,7 @@ interface GroupItem {
   items: Array<{
     itemid?: string;
     text: string;
+    /** Intentional typo - matches EduPage source code */
     attachements?: unknown[];
   }>;
 }
