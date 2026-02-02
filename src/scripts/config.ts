@@ -4,9 +4,6 @@ export const CONFIG = {
   // Known etestPlayer.js version - update this when verifying compatibility
   KNOWN_ETEST_PLAYER_VERSION: '285016',
 
-  // Extension version (should match manifest.json)
-  EXTENSION_VERSION: '0.3.0',
-
   // jQuery detection timeout (ms)
   JQUERY_WAIT_TIMEOUT: 10000,
 

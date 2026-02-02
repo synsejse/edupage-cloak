@@ -1,7 +1,6 @@
 {
   "manifest_version": 3,
   "name": "EduPage Cloak",
-  "version": "0.3.0",
   "description": "EduPage Cloak — block EduPage and reduce tracking",
   "permissions": ["storage"],
   "host_permissions": ["*://*.edupage.org/*"],
