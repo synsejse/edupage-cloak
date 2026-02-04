@@ -19,6 +19,5 @@ function injectScript(filename: string, name: string): void {
 
 // Inject required scripts
 injectScript('inject.js', 'Tracking blocker');
-injectScript('answer-revealer.js', 'Answer revealer');
 
 logger.info('Injection initiated');

@@ -22,7 +22,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["inject.js", "answer-revealer.js"],
+      "resources": ["inject.js"],
       "matches": ["*://*.edupage.org/*"]
     }
   ],

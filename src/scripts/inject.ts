@@ -202,21 +202,18 @@ import { CONFIG } from './config';
     window.__interceptorRules.push({
       pattern: /elearning\/pics\/js\/etest\/etestPlayer\.js/,
       modifier: (content, url) => {
-        logger.info('Patching etestPlayer.js: Exposing materialObj');
-        toast.success('Test player intercepted', 4000);
+        logger.info('etestPlayer.js detected - checking version');
 
         // Check version compatibility
         checkEtestPlayerVersion(url);
 
-        return content.replace(
-          'var materialObj = null;',
-          'window.materialObj = null;'
-        );
+        // Return content unmodified
+        return content;
       },
     });
 
-    logger.info('Registered interceptor for etestPlayer.js');
-    toast.info('Network interceptor ready', 3000);
+    logger.info('Registered version checker for etestPlayer.js');
+    toast.info('Version checker ready', 3000);
   }
 
   // jQuery watcher

@@ -25,7 +25,6 @@ export const CONFIG = {
   // Storage keys
   STORAGE_KEYS: {
     DEBUG: 'edupage-cloak-debug',
-    ANSWER_REVEALER_STATE: 'edupage-cloak-revealer-state',
   },
 
   // Global window keys (for singleton patterns)
