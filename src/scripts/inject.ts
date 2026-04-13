@@ -20,13 +20,10 @@ import { CONFIG } from './config';
   };
 
   function reportBlock(events: string[]): void {
-    let newEventsBlocked = false;
-
     for (const event of events) {
       blockStats.totalBlocks++;
       if (!blockStats.blockedEvents.has(event)) {
         blockStats.blockedEvents.add(event);
-        newEventsBlocked = true;
       }
     }
 
@@ -37,13 +34,7 @@ import { CONFIG } from './config';
       `Blocked: ${events.join(', ')} (${uniqueBlocked}/${TOTAL_TRACKABLE_EVENTS} event types)`
     );
 
-    // Show toast when new event types are blocked
-    if (newEventsBlocked) {
-      toast.success(
-        `Tracking blocked: ${uniqueBlocked}/${TOTAL_TRACKABLE_EVENTS} event types`,
-        3000
-      );
-    }
+    toast.info(`Blocked tracking: ${events.join(', ')}`, 2200);
   }
 
   // jQuery event blocker
@@ -196,10 +187,7 @@ import { CONFIG } from './config';
         clearInterval(interval);
         patchJQuery(window.jQuery);
         logger.info('jQuery patched - tracking event blocker installed');
-        toast.success(
-          `Event blocker ready (monitoring ${TOTAL_TRACKABLE_EVENTS} event types)`,
-          4000
-        );
+        toast.success('Event blocker ready', 4000);
       }
     }, CONFIG.JQUERY_POLL_INTERVAL);
 
