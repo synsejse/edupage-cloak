@@ -22,6 +22,8 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build && bun ./build-tools/extract-inline.ts && bun ./build-tools/bundler.ts && bun ./build-tools/pack-extension.ts",
+    "test": "bun test",
+    "test:compat": "bun test tests/etestPlayer.compat.test.ts",
     "preview": "astro preview",
     "astro": "astro",
     "format": "prettier --write '**/*.{js,jsx,ts,tsx,json,md}' '!build/**' '!node_modules/**'",

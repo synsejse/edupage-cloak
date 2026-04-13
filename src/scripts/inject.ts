@@ -1,5 +1,7 @@
 // Inject Script - Block EduPage tracking functionality
+import { sha256Hex } from './checksum';
 import { createLogger, toast } from './internal';
+import { BLOCKED_EVENTS } from './blocked-events';
 import { CONFIG } from './config';
 
 (function () {
@@ -7,32 +9,9 @@ import { CONFIG } from './config';
 
   toast.success('EduPage Cloak loaded', 4000);
 
-  // Blocked tracking events
-  const BLOCKED_EVENTS = new Set([
-    // Fullscreen
-    'webkitfullscreenchange.etestaplayer',
-    'mozfullscreenchange.etestaplayer',
-    'fullscreenchange.etestaplayer',
-    // Navigation
-    'beforeunload.etestplayer',
-    'remove.etestplayer',
-    // Scroll
-    'scroll.etestplayer',
-    // Visibility/focus
-    'visibilitychange.etestplayeral',
-    'blur.etestplayeral',
-    'focus.etestplayeral',
-    'enterBackgroundHandler.etestplayeral',
-    'enterForegroundHandler.etestplayeral',
-    // Clipboard
-    'copy.etestplayeral',
-    'paste.etestplayeral',
-    'cut.etestplayeral',
-    // Keyboard
-    'keydown.etestplayeral',
-  ]);
+  const blockedEvents = new Set(BLOCKED_EVENTS);
 
-  const TOTAL_TRACKABLE_EVENTS = BLOCKED_EVENTS.size;
+  const TOTAL_TRACKABLE_EVENTS = blockedEvents.size;
 
   // Block tracking statistics
   const blockStats = {
@@ -80,7 +59,7 @@ import { CONFIG } from './config';
     ) {
       if (typeof events === 'string') {
         const eventList = events.split(/\s+/);
-        const blocked = eventList.filter((e) => BLOCKED_EVENTS.has(e));
+        const blocked = eventList.filter((e) => blockedEvents.has(e));
 
         if (blocked.length > 0) {
           reportBlock(blocked);
@@ -169,31 +148,27 @@ import { CONFIG } from './config';
     toast.info('JSON interceptor ready', 3000);
   }
 
-  // Check etestPlayer.js version and warn if changed
-  function checkEtestPlayerVersion(url: string): void {
-    // Extract version from URL query parameter: ?v=<version>
-    const versionMatch = url.match(/[?&]v=([a-f0-9]+)/i);
+  // Check etestPlayer.js checksum and warn if changed
+  async function checkEtestPlayerChecksum(
+    content: string,
+    url: string
+  ): Promise<void> {
+    const detectedChecksum = await sha256Hex(content);
+    logger.info(`etestPlayer.js checksum: ${detectedChecksum}`);
 
-    if (!versionMatch) {
-      logger.warn('Could not extract etestPlayer.js version from URL');
-      toast.warn('Could not verify test player version', 5000);
+    if (detectedChecksum !== CONFIG.KNOWN_ETEST_PLAYER_CHECKSUM) {
+      logger.warn(
+        `Checksum mismatch! Expected: ${CONFIG.KNOWN_ETEST_PLAYER_CHECKSUM}, Got: ${detectedChecksum}`
+      );
+      toast.warn(
+        `etestPlayer.js checksum changed (${detectedChecksum.slice(0, 12)}) - extension may need update`,
+        0
+      );
+      logger.warn(`Checksum mismatch detected for ${url}`);
       return;
     }
 
-    const detectedVersion = versionMatch[1];
-    logger.info(`etestPlayer.js version: ${detectedVersion}`);
-
-    if (detectedVersion !== CONFIG.KNOWN_ETEST_PLAYER_VERSION) {
-      logger.warn(
-        `Version mismatch! Expected: ${CONFIG.KNOWN_ETEST_PLAYER_VERSION}, Got: ${detectedVersion}`
-      );
-      toast.warn(
-        `⚠️ etestPlayer.js updated (${detectedVersion}) - extension may need update`,
-        0 // Persistent toast
-      );
-    } else {
-      logger.info('etestPlayer.js version verified');
-    }
+    logger.info('etestPlayer.js checksum verified');
   }
 
   // Network interceptor rules
@@ -201,19 +176,17 @@ import { CONFIG } from './config';
     window.__interceptorRules = window.__interceptorRules || [];
     window.__interceptorRules.push({
       pattern: /elearning\/pics\/js\/etest\/etestPlayer\.js/,
-      modifier: (content, url) => {
-        logger.info('etestPlayer.js detected - checking version');
+      modifier: async (content, url) => {
+        logger.info('etestPlayer.js detected - checking checksum');
 
-        // Check version compatibility
-        checkEtestPlayerVersion(url);
+        await checkEtestPlayerChecksum(content, url);
 
-        // Return content unmodified
         return content;
       },
     });
 
-    logger.info('Registered version checker for etestPlayer.js');
-    toast.info('Version checker ready', 3000);
+    logger.info('Registered checksum checker for etestPlayer.js');
+    toast.info('Checksum checker ready', 3000);
   }
 
   // jQuery watcher

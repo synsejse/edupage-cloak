@@ -1,8 +1,9 @@
 // Centralized configuration for EduPage Cloak extension
 
 export const CONFIG = {
-  // Known etestPlayer.js version - update this when verifying compatibility
-  KNOWN_ETEST_PLAYER_VERSION: '285016',
+  // Known etestPlayer.js SHA-256 checksum - update this when verifying compatibility
+  KNOWN_ETEST_PLAYER_CHECKSUM:
+    '4b1b7466753b3a1a1f5cd1fd7f9ce5e0aff69858a6a3e6c7ff73cd6f674b6e88',
 
   // jQuery detection timeout (ms)
   JQUERY_WAIT_TIMEOUT: 10000,
@@ -20,7 +21,9 @@ export const CONFIG = {
   },
 
   // Feature flags
-  DEBUG_MODE: localStorage.getItem('edupage-cloak-debug') === 'true',
+  DEBUG_MODE:
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem('edupage-cloak-debug') === 'true',
 
   // Storage keys
   STORAGE_KEYS: {
