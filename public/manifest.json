@@ -3,17 +3,17 @@
   "name": "EduPage Cloak",
   "description": "EduPage Cloak — block EduPage and reduce tracking",
   "permissions": ["storage"],
-  "host_permissions": ["*://*.edupage.org/*"],
+  "host_permissions": ["*://*.edupage.org/*", "*://*.ibobor-online.sk/*"],
   "content_scripts": [
     {
-      "matches": ["*://*.edupage.org/*"],
+      "matches": ["*://*.edupage.org/*", "*://*.ibobor-online.sk/*"],
       "js": ["interceptor.js"],
       "run_at": "document_start",
       "world": "MAIN",
       "all_frames": true
     },
     {
-      "matches": ["*://*.edupage.org/*"],
+      "matches": ["*://*.edupage.org/*", "*://*.ibobor-online.sk/*"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_start",
@@ -23,7 +23,7 @@
   "web_accessible_resources": [
     {
       "resources": ["inject.js"],
-      "matches": ["*://*.edupage.org/*"]
+      "matches": ["*://*.edupage.org/*", "*://*.ibobor-online.sk/*"]
     }
   ],
   "action": {
